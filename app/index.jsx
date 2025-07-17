@@ -1,14 +1,29 @@
 import Octicons from "@expo/vector-icons/Octicons";
 import { useRouter } from 'expo-router';
 import { useState } from "react";
-import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function TaskList({ navigation }) {
-    const [task, setTask] = useState([]);
+export default function TaskList() {
     const router = useRouter();
-
+    const [tasks, setTasks] = useState([
+        { id: 1, title: "Buy groceries", completed: false },
+        { id: 2, title: "Do laundry", completed: true },
+        { id: 3, title: "Finish project", completed: false },
+    ]);
     const addTask = () => {
-        router.navigate('/addTask');
+        router.push('/addTask');
+    };
+
+    const toggleTask = (id) => {
+        console.log(id);
+        setTasks((prevTasks) =>
+            prevTasks.map((task) =>
+                task.id === id
+                    ? { ...task, completed: !task.completed }
+                    : task
+            )
+        );
     };
 
     return (
@@ -17,15 +32,18 @@ export default function TaskList({ navigation }) {
                 <Octicons name="diff-added" size={24} color={"white"} />
             </TouchableOpacity>
             <FlatList
-                data={[{ title: "Hej", completed: false }]}
+                data={tasks}
+                keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
                     <View style={styles.taskContainer}>
                         <Text>{item.title}</Text>
-                        <View style={styles.checkboxContainer}>
-                            {item.completed && (
-                                <Octicons name="check" size={24} color="green" />
-                            )}
-                        </View>
+                        <TouchableOpacity onPress={() => toggleTask(item.id)}>
+                            <View style={styles.checkboxContainer}>
+                                {item.completed && (
+                                    <Octicons name="check" size={24} color="green" />
+                                )}
+                            </View>
+                        </TouchableOpacity>
                     </View>
                 )}
             />
