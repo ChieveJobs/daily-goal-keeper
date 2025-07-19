@@ -1,18 +1,35 @@
 import Octicons from "@expo/vector-icons/Octicons";
-import { useRouter } from 'expo-router';
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { loadTasks } from "./utils/storage";
 
 export default function TaskList() {
     const router = useRouter();
-    const [tasks, setTasks] = useState([
-        { id: 1, title: "Buy groceries", completed: false },
-        { id: 2, title: "Do laundry", completed: true },
-        { id: 3, title: "Finish project", completed: false },
-    ]);
-    const addTask = () => {
-        router.push('/addTask');
+    const [tasks, setTasks] = useState([]);
+
+    useFocusEffect(
+        useCallback(() => {
+            let isActive = true;
+
+            const load = async () => {
+                const loaded = await loadTasks();
+                if (isActive) {
+                    setTasks(loaded);
+                }
+            };
+
+            load();
+
+            return () => {
+                isActive = false;
+            };
+        }, [])
+    );
+
+    const addTask = (id) => {
+        router.push({ pathname: '/addTask', params: { taskId: id } });
     };
 
     const toggleTask = (id) => {
@@ -35,16 +52,18 @@ export default function TaskList() {
                 data={tasks}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
-                    <View style={styles.taskContainer}>
-                        <Text>{item.title}</Text>
-                        <TouchableOpacity onPress={() => toggleTask(item.id)}>
-                            <View style={styles.checkboxContainer}>
-                                {item.completed && (
-                                    <Octicons name="check" size={24} color="green" />
-                                )}
-                            </View>
-                        </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity onPress={() => addTask(item.id)}>
+                        <View style={styles.taskContainer}>
+                            <Text>{item.title}</Text>
+                            <TouchableOpacity onPress={() => toggleTask(item.id)}>
+                                <View style={styles.checkboxContainer}>
+                                    {item.completed && (
+                                        <Octicons name="check" size={24} color="green" />
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
                 )}
             />
         </SafeAreaView>
@@ -92,6 +111,7 @@ const styles = StyleSheet.create({
         height: 26,
         paddingLeft: 2,
         borderWidth: 2,
-        borderColor: "green"
+        borderColor: "green",
+        zIndex: 9999
     }
 });
