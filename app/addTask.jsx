@@ -10,7 +10,6 @@ export default function AddTask() {
   const [tasks, setTasks] = useState([]);
   const [titleInput, onChangeTitleText] = useState("");
   const [descriptionInput, onChangeDescriptionText] = useState("");
-  const [newTaskAdded, setNewTaskAdded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -35,42 +34,50 @@ export default function AddTask() {
     router.back();
   };
 
-  const addTask = () => {
-    if (titleInput === "") {
-      return;
-    }
-
-    const maxId = tasks.length !== 0
-      ? tasks.reduce((max, task) => Math.max(max, task?.id ?? 0), 0)
-      : 0;
-
-    const newTask = {
-      id: maxId + 1,
-      title: titleInput,
-      description: descriptionInput,
-    };
-
-    const updatedTasks = [...tasks, newTask];
-
-    setTasks(updatedTasks);
-    setNewTaskAdded(true);
+  const deleteTask = async () => {
+    setTasks((prevTasks) => prevTasks.filter(task => task.id !== Number(taskId)));
+    await saveTasks(updatedTasks);
+    router.back();
   };
 
-  useEffect(() => {
-    if (newTaskAdded && tasks.length > 0) {
-      saveTasks(tasks);
-      setNewTaskAdded(false);
-      router.back();
+  const saveTask = async () => {
+    if (titleInput.trim() === "") return;
 
+    const id = Number(taskId);
+    let updatedTasks;
+
+    if (id) {
+      updatedTasks = tasks.map(task =>
+        task.id === id
+          ? { ...task, title: titleInput, description: descriptionInput }
+          : task
+      );
+    } else {
+      const maxId = tasks.reduce((max, task) => Math.max(max, task?.id ?? 0), 0);
+      const newTask = {
+        id: maxId + 1,
+        title: titleInput,
+        description: descriptionInput,
+      };
+      updatedTasks = [...tasks, newTask];
     }
-  }, [newTaskAdded, tasks]);
+
+    setTasks(updatedTasks);
+    await saveTasks(updatedTasks);
+    router.back();
+  };
+
+
 
   return (
     <SafeAreaView style={styles.container}>
       <TextInput value={titleInput} placeholder="Title" style={[styles.inputBox, styles.titleInput]} onChangeText={onChangeTitleText} />
       <TextInput value={descriptionInput} multiline={true} placeholder="Description" style={[styles.inputBox, styles.descriptionInput]} onChangeText={onChangeDescriptionText} />
-      <TouchableOpacity style={[styles.button, styles.addButton]} onPress={addTask}>
-        <Text style={styles.buttonText}>Add</Text>
+      <TouchableOpacity style={[styles.button, styles.addButton]} onPress={saveTask}>
+        <Text style={styles.buttonText}>{Number(taskId) ? "Edit" : "Add"}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={deleteTask}>
+        <Text style={styles.buttonText}>Delete</Text>
       </TouchableOpacity>
       <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={cancel}>
         <Text style={styles.buttonText}>Cancel</Text>
@@ -113,6 +120,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 40,
     right: 10
+  },
+  deleteButton: {
+    backgroundColor: "red",
+    position: "absolute",
+    bottom: 40,
+    left: "35%"
   },
   cancelButton: {
     backgroundColor: "lightgray",
