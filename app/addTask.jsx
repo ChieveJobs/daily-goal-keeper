@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { loadTasks, saveTasks } from "./utils/storage";
 
 export default function AddTask() {
-  const { taskId } = useLocalSearchParams();
+  const { taskId, dateOfTask } = useLocalSearchParams();
   const router = useRouter();
   const [tasks, setTasks] = useState([]);
   const [titleInput, onChangeTitleText] = useState("");
@@ -58,6 +58,7 @@ export default function AddTask() {
         id: maxId + 1,
         title: titleInput,
         description: descriptionInput,
+        taskDate: dateOfTask
       };
       updatedTasks = [...tasks, newTask];
     }

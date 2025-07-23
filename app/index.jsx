@@ -3,11 +3,17 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { loadTasks } from "./utils/storage";
+import { loadTasks, saveTasks } from "./utils/storage";
 
 export default function TaskList() {
+    const [selectedDate, setDate] = useState(new Date());
     const router = useRouter();
     const [tasks, setTasks] = useState([]);
+
+    const getFilteredTasks = () => {
+        const formattedDate = selectedDate.toLocaleDateString('en-GB');
+        return tasks.filter(task => task.taskDate === formattedDate);
+    };
 
     useFocusEffect(
         useCallback(() => {
@@ -28,8 +34,19 @@ export default function TaskList() {
         }, [])
     );
 
+    const adjustSelectedDate = (direction) => {
+        const newDate = new Date(selectedDate);
+        if (direction === "forward") {
+            newDate.setDate(newDate.getDate() + 1);
+        } else {
+            newDate.setDate(newDate.getDate() - 1);
+        }
+
+        setDate(newDate);
+    };
+
     const addTask = (id) => {
-        router.push({ pathname: '/addTask', params: { taskId: id } });
+        router.push({ pathname: '/addTask', params: { taskId: id, dateOfTask: new Date().toLocaleDateString('en-GB') } });
     };
 
     const toggleTask = (id) => {
@@ -41,15 +58,26 @@ export default function TaskList() {
                     : task
             )
         );
+
+        saveTasks(tasks);
     };
 
     return (
         <SafeAreaView style={styles.container}>
+            <View style={styles.dateContainer}>
+                <TouchableOpacity onPress={() => adjustSelectedDate("backward")} style={[styles.dateButton, styles.dateBackwardButton]}>
+                    <Octicons name="arrow-left" size={24} />
+                </TouchableOpacity>
+                <Text style={styles.dateText}>{selectedDate.toLocaleDateString('en-GB')}</Text>
+                <TouchableOpacity onPress={() => adjustSelectedDate("forward")} style={[styles.dateButton, styles.dateForwardButton]}>
+                    <Octicons name="arrow-right" size={24} />
+                </TouchableOpacity>
+            </View >
             <TouchableOpacity style={styles.floatingActionButton} onPress={addTask}>
                 <Octicons name="diff-added" size={24} color={"white"} />
             </TouchableOpacity>
             <FlatList
-                data={tasks}
+                data={getFilteredTasks()}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
                     <TouchableOpacity onPress={() => addTask(item.id)}>
@@ -66,15 +94,38 @@ export default function TaskList() {
                     </TouchableOpacity>
                 )}
             />
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
-
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: "white"
+    },
+    dateContainer: {
+        height: "8%",
+        width: "100%",
+        backgroundColor: "green",
+        justifyContent: "center",
+        alignItems: "center"
+    },
+    dateButton: {
+        position: "absolute",
+        width: 30,
+        height: "100%",
+        color: "blue",
+        justifyContent: "center",
+        margin: 20
+    },
+    dateBackwardButton: {
+        left: 0
+    },
+    dateForwardButton: {
+        right: 0
+    },
+    dateText: {
+        color: "white"
     },
     floatingActionButton: {
         width: 60,
