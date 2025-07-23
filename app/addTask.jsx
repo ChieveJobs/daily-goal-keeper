@@ -35,7 +35,8 @@ export default function AddTask() {
   };
 
   const deleteTask = async () => {
-    setTasks((prevTasks) => prevTasks.filter(task => task.id !== Number(taskId)));
+    const updatedTasks = tasks.filter(task => task.id !== Number(taskId));
+    setTasks(updatedTasks);
     await saveTasks(updatedTasks);
     router.back();
   };
@@ -77,9 +78,11 @@ export default function AddTask() {
       <TouchableOpacity style={[styles.button, styles.addButton]} onPress={saveTask}>
         <Text style={styles.buttonText}>{Number(taskId) ? "Edit" : "Add"}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={deleteTask}>
-        <Text style={styles.buttonText}>Delete</Text>
-      </TouchableOpacity>
+      {Number(taskId) ? (
+        <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={deleteTask}>
+          <Text style={styles.buttonText}>Delete</Text>
+        </TouchableOpacity>
+      ) : null}
       <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={cancel}>
         <Text style={styles.buttonText}>Cancel</Text>
       </TouchableOpacity>
