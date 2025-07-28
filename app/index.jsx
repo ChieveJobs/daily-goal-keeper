@@ -1,15 +1,15 @@
 //#region Imports 
 import Octicons from "@expo/vector-icons/Octicons";
-import { useIsFocused } from "@react-navigation/native"; // 👈 NEW
+import { useIsFocused } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-    FlatList,
+    SectionList,
     StyleSheet,
     TouchableOpacity,
     View,
-    useColorScheme,
+    useColorScheme
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -25,22 +25,25 @@ import { loadTasks, saveTasks } from "./utils/storage";
 //#endregion
 
 export default function TaskList() {
-    //Hooks
+    // Hooks
     const [selectedDate, setDate] = useState(new Date());
     const [tasks, setTasks] = useState([]);
+    const [visible, setVisible] = useState(true); // 👈 Visibility control
     const router = useRouter();
     const isFocused = useIsFocused();
 
-    //Styles
+    // Styles
     const colorScheme = useColorScheme();
     const checkboxContainerColor = colorScheme === "dark" ? "white" : "black";
-    const fabColor = colorScheme === "dark" ? "#34d399" : "#10b981";
+    const fabColor = colorScheme === "dark"
+        ? "rgba(52, 211, 153, 0.95)"
+        : "rgba(16, 185, 129, 0.95)";
     const dateContainerColor =
         colorScheme === "dark"
             ? "rgba(39, 35, 35, 0.54)"
             : "rgba(255, 255, 255, 0.4)";
 
-    //Animations
+    // Animations
     const slideX = useSharedValue(0);
     const opacity = useSharedValue(1);
 
@@ -51,20 +54,36 @@ export default function TaskList() {
 
     const getFilteredTasks = () => {
         const formattedDate = selectedDate.toLocaleDateString("en-GB");
-        return tasks.filter((task) => task.taskDate === formattedDate);
+
+        return [
+            {
+                title: 'Completed',
+                data: tasks.filter((task) => task.completed),
+            },
+            {
+                title: 'High priority',
+                data: tasks.filter((task) => task.priority === "high" && !task.completed && task.taskDate === formattedDate),
+            },
+            {
+                title: 'Medium priority',
+                data: tasks.filter((task) => task.priority === "medium" && !task.completed && task.taskDate === formattedDate),
+            },
+            {
+                title: 'Low priority',
+                data: tasks.filter((task) => task.priority === "low" && !task.completed && task.taskDate === formattedDate),
+            }
+        ];
     };
 
     useFocusEffect(
         useCallback(() => {
             let isActive = true;
-
             const load = async () => {
                 const loaded = await loadTasks();
                 if (isActive) {
                     setTasks(loaded);
                 }
             };
-
             load();
             return () => {
                 isActive = false;
@@ -75,22 +94,30 @@ export default function TaskList() {
     const adjustSelectedDate = (direction) => {
         const offset = direction === "forward" ? -300 : 300;
 
+        // Animate list off-screen
         slideX.value = withTiming(offset, { duration: 150 });
         opacity.value = withTiming(0, { duration: 150 }, () => {
-            runOnJS(updateDate)(direction, offset);
+            runOnJS(handlePostSlideOut)(direction, offset);
         });
     };
 
-    const updateDate = (direction, offset) => {
-        const newDate = new Date(selectedDate);
-        newDate.setDate(newDate.getDate() + (direction === "forward" ? 1 : -1));
-        setDate(newDate);
+    const handlePostSlideOut = (direction, offset) => {
+        setVisible(false); // Hide old list after it has slid out
 
-        slideX.value = -offset;
-        opacity.value = 0;
+        setTimeout(() => {
+            const newDate = new Date(selectedDate);
+            newDate.setDate(newDate.getDate() + (direction === "forward" ? 1 : -1));
+            setDate(newDate);
 
-        slideX.value = withTiming(0, { duration: 150 });
-        opacity.value = withTiming(1, { duration: 150 });
+            // Start new list off-screen in opposite direction
+            slideX.value = -offset;
+
+            setVisible(true); // Show new list
+
+            // Animate in
+            slideX.value = withTiming(0, { duration: 150 });
+            opacity.value = withTiming(1, { duration: 150 });
+        }, 10); // Allow time for list to unmount
     };
 
     const addTask = (id) => {
@@ -111,19 +138,74 @@ export default function TaskList() {
         saveTasks(updated);
     };
 
+    // Improved pan gesture for horizontal swipe with simultaneous vertical scroll
     const panGesture = Gesture.Pan()
+        .activeOffsetX([-15, 15])   // activate only after horizontal move of 15px
+        .failOffsetY([-10, 10])     // fail gesture if vertical move > 10px (means mostly vertical)
         .onUpdate((e) => {
-            slideX.value = e.translationX; 
+            slideX.value = e.translationX;
         })
         .onEnd((e) => {
             if (Math.abs(e.translationX) > 80) {
                 const direction = e.translationX < 0 ? "forward" : "backward";
-                runOnJS(updateDate)(direction, e.translationX);
+                runOnJS(adjustSelectedDate)(direction);
             } else {
                 slideX.value = withTiming(0);
             }
         });
 
+    const simultaneousGesture = Gesture.Simultaneous(panGesture);
+
+    const renderList = () => (
+        <Animated.View style={animatedStyle}>
+            <SectionList
+                style={styles.sectionList}
+                sections={getFilteredTasks()}
+                renderSectionHeader={({ section: { title } }) => (
+                    <ThemedText style={styles.sectionHeader}>{title}</ThemedText>
+                )}
+                renderItem={({ item }) => (
+                    <TouchableOpacity onPress={() => addTask(item.id)} activeOpacity={0.9}>
+                        <BlurView
+                            intensity={colorScheme === "dark" ? 40 : 60}
+                            tint={colorScheme === "dark" ? "dark" : "light"}
+                            style={[
+                                styles.taskContainer,
+                                {
+                                    backgroundColor:
+                                        colorScheme === "dark"
+                                            ? "rgba(28,28,30,0.6)"
+                                            : "rgba(255,255,255,0.7)",
+                                    borderLeftColor: item.completed ? "#10b981" : "#fbbf24",
+                                    borderLeftWidth: 6,
+                                },
+                            ]}
+                        >
+                            <View style={styles.taskTextContainer}>
+                                <ThemedText style={styles.taskTitle}>{item.title}</ThemedText>
+                                <ThemedText style={styles.taskSubtitle}>
+                                    {item.completed ? "Completed" : "Pending"}
+                                </ThemedText>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => toggleTask(item.id)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // expand touchable area
+                            >
+                                <View
+                                    style={[
+                                        styles.checkboxContainer,
+                                        { borderColor: checkboxContainerColor },
+                                    ]}
+                                >
+                                    {item.completed && <ThemedOcticon name="check" size={20} />}
+                                </View>
+                            </TouchableOpacity>
+                        </BlurView>
+                    </TouchableOpacity>
+                )}
+            />
+        </Animated.View>
+    );
 
     return (
         <SafeAreaView style={styles.container}>
@@ -151,95 +233,10 @@ export default function TaskList() {
                 <Octicons name="diff-added" size={24} color="white" />
             </TouchableOpacity>
 
-            {/* ✅ Only apply gesture and animation when this screen is focused */}
-            {isFocused ? (
-                <GestureDetector gesture={panGesture}>
-                    <Animated.View style={animatedStyle}>
-                        <FlatList
-                            style={styles.flatList}
-                            data={getFilteredTasks()}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity onPress={() => addTask(item.id)} activeOpacity={0.9}>
-                                    <BlurView
-                                        intensity={colorScheme === "dark" ? 40 : 60}
-                                        tint={colorScheme === "dark" ? "dark" : "light"}
-                                        style={[
-                                            styles.taskContainer,
-                                            {
-                                                backgroundColor:
-                                                    colorScheme === "dark"
-                                                        ? "rgba(28,28,30,0.6)"
-                                                        : "rgba(255,255,255,0.7)",
-                                                borderLeftColor: item.completed ? "#10b981" : "#fbbf24",
-                                                borderLeftWidth: 6,
-                                            },
-                                        ]}
-                                    >
-                                        <View style={styles.taskTextContainer}>
-                                            <ThemedText style={styles.taskTitle}>{item.title}</ThemedText>
-                                            <ThemedText style={styles.taskSubtitle}>
-                                                {item.completed ? "Completed" : "Pending"}
-                                            </ThemedText>
-                                        </View>
-                                        <TouchableOpacity onPress={() => toggleTask(item.id)}>
-                                            <View
-                                                style={[
-                                                    styles.checkboxContainer,
-                                                    { borderColor: checkboxContainerColor },
-                                                ]}
-                                            >
-                                                {item.completed && <ThemedOcticon name="check" size={20} />}
-                                            </View>
-                                        </TouchableOpacity>
-                                    </BlurView>
-                                </TouchableOpacity>
-                            )}
-                        />
-                    </Animated.View>
+            {isFocused && visible && (
+                <GestureDetector gesture={simultaneousGesture}>
+                    {renderList()}
                 </GestureDetector>
-            ) : (
-                <FlatList
-                    style={styles.flatList}
-                    data={getFilteredTasks()}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity onPress={() => addTask(item.id)} activeOpacity={0.9}>
-                            <BlurView
-                                intensity={colorScheme === "dark" ? 40 : 60}
-                                tint={colorScheme === "dark" ? "dark" : "light"}
-                                style={[
-                                    styles.taskContainer,
-                                    {
-                                        backgroundColor:
-                                            colorScheme === "dark"
-                                                ? "rgba(28,28,30,0.6)"
-                                                : "rgba(255,255,255,0.7)",
-                                        borderLeftColor: item.completed ? "#10b981" : "#fbbf24",
-                                        borderLeftWidth: 6,
-                                    },
-                                ]}
-                            >
-                                <View style={styles.taskTextContainer}>
-                                    <ThemedText style={styles.taskTitle}>{item.title}</ThemedText>
-                                    <ThemedText style={styles.taskSubtitle}>
-                                        {item.completed ? "Completed" : "Pending"}
-                                    </ThemedText>
-                                </View>
-                                <TouchableOpacity onPress={() => toggleTask(item.id)}>
-                                    <View
-                                        style={[
-                                            styles.checkboxContainer,
-                                            { borderColor: checkboxContainerColor },
-                                        ]}
-                                    >
-                                        {item.completed && <ThemedOcticon name="check" size={20} />}
-                                    </View>
-                                </TouchableOpacity>
-                            </BlurView>
-                        </TouchableOpacity>
-                    )}
-                />
             )}
         </SafeAreaView>
     );
@@ -322,7 +319,11 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-    flatList: {
+    sectionList: {
         height: "100%",
     },
+    sectionHeader: {
+        paddingLeft: 20,
+        paddingBottom: 10
+    }
 });

@@ -1,7 +1,18 @@
-import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
-import { StyleSheet, TouchableOpacity, View, useColorScheme } from "react-native";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  useColorScheme,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ThemedModalPicker from "./components/ThemedModalPicker";
 import ThemedText from "./components/ThemedText";
 import ThemedTextInput from "./components/ThemedTextInput";
 import { loadTasks, saveTasks } from "./utils/storage";
@@ -15,8 +26,9 @@ export default function AddTask() {
   const [tasks, setTasks] = useState([]);
   const [titleInput, onChangeTitleText] = useState("");
   const [descriptionInput, onChangeDescriptionText] = useState("");
+  const [selectedPriority, setSelectedPriority] = useState("");
 
-  // Theme colors for buttons
+  // Theme-based colors
   const green = colorScheme === "dark" ? "#34d399" : "#10b981";
   const red = colorScheme === "dark" ? "#f87171" : "#ef4444";
   const gray = colorScheme === "dark" ? "#6b7280" : "#d1d5db";
@@ -42,6 +54,7 @@ export default function AddTask() {
       if (existingTask) {
         onChangeTitleText(existingTask.title);
         onChangeDescriptionText(existingTask.description);
+        setSelectedPriority(existingTask.priority || "");
       }
     }
   }, [taskId, tasks]);
@@ -49,7 +62,7 @@ export default function AddTask() {
   const cancel = () => router.back();
 
   const deleteTask = async () => {
-    const updatedTasks = tasks.filter(task => task.id !== Number(taskId));
+    const updatedTasks = tasks.filter((task) => task.id !== Number(taskId));
     setTasks(updatedTasks);
     await saveTasks(updatedTasks);
     router.back();
@@ -62,18 +75,28 @@ export default function AddTask() {
     let updatedTasks;
 
     if (id) {
-      updatedTasks = tasks.map(task =>
+      updatedTasks = tasks.map((task) =>
         task.id === id
-          ? { ...task, title: titleInput, description: descriptionInput, taskDate: dateOfTask }
+          ? {
+              ...task,
+              title: titleInput,
+              description: descriptionInput,
+              taskDate: dateOfTask,
+              priority: selectedPriority,
+            }
           : task
       );
     } else {
-      const maxId = tasks.reduce((max, task) => Math.max(max, task?.id ?? 0), 0);
+      const maxId = tasks.reduce(
+        (max, task) => Math.max(max, task?.id ?? 0),
+        0
+      );
       const newTask = {
         id: maxId + 1,
         title: titleInput,
         description: descriptionInput,
         taskDate: dateOfTask,
+        priority: selectedPriority,
       };
       updatedTasks = [...tasks, newTask];
     }
@@ -99,17 +122,25 @@ export default function AddTask() {
         style={[styles.inputBox, styles.descriptionInput]}
       />
 
+      <ThemedModalPicker
+        label="Select Priority"
+        selected={selectedPriority}
+        onChange={setSelectedPriority}
+        options={[
+          { label: "High", value: "high" },
+          { label: "Medium", value: "medium" },
+          { label: "Low", value: "low" }
+        ]}
+      />
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: green }]}
-          onPress={saveTask}
+          style={[styles.button, { backgroundColor: gray }]}
+          onPress={cancel}
           activeOpacity={0.8}
         >
-          <ThemedText style={styles.buttonText}>
-            {Number(taskId) ? "Save" : "Add"}
-          </ThemedText>
+          <ThemedText style={styles.buttonText}>Cancel</ThemedText>
         </TouchableOpacity>
-
         {Number(taskId) ? (
           <TouchableOpacity
             style={[styles.button, { backgroundColor: red }]}
@@ -119,13 +150,14 @@ export default function AddTask() {
             <ThemedText style={styles.buttonText}>Delete</ThemedText>
           </TouchableOpacity>
         ) : null}
-
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: gray }]}
-          onPress={cancel}
+          style={[styles.button, { backgroundColor: green }]}
+          onPress={saveTask}
           activeOpacity={0.8}
         >
-          <ThemedText style={styles.buttonText}>Cancel</ThemedText>
+          <ThemedText style={styles.buttonText}>
+            {Number(taskId) ? "Save" : "Add"}
+          </ThemedText>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -152,7 +184,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: "auto",
     marginBottom: 20,
-    zIndex: 9999
   },
   button: {
     flex: 1,
@@ -166,7 +197,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
-    zIndex: 9999
   },
   buttonText: {
     fontSize: 16,
