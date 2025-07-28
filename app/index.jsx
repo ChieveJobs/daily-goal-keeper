@@ -1,14 +1,21 @@
 import Octicons from "@expo/vector-icons/Octicons";
+import { BlurView } from 'expo-blur';
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, StyleSheet, TouchableOpacity, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ThemedOcticon from "./components/ThemedOcticon";
+import ThemedText from "./components/ThemedText";
 import { loadTasks, saveTasks } from "./utils/storage";
 
 export default function TaskList() {
     const [selectedDate, setDate] = useState(new Date());
     const router = useRouter();
     const [tasks, setTasks] = useState([]);
+    const colorScheme = useColorScheme();
+    const checkboxContainerColor = colorScheme === 'dark' ? 'white' : 'black';
+    const fabColor = colorScheme === 'dark' ? "#645252ff" : "#95baf7ff";
+    const dateContainerColor = colorScheme === 'dark' ? 'rgba(39, 35, 35, 0.54)' : 'rgba(255, 255, 255, 0.4)';
 
     const getFilteredTasks = () => {
         const formattedDate = selectedDate.toLocaleDateString('en-GB');
@@ -64,33 +71,36 @@ export default function TaskList() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.dateContainer}>
+            <View style={[styles.dateContainer, { backgroundColor: dateContainerColor }]}>
                 <TouchableOpacity onPress={() => adjustSelectedDate("backward")} style={[styles.dateButton, styles.dateBackwardButton]}>
-                    <Octicons name="arrow-left" size={24} />
+                    <ThemedOcticon name="arrow-left" size={24} />
                 </TouchableOpacity>
-                <Text style={styles.dateText}>{selectedDate.toLocaleDateString('en-GB')}</Text>
+                <ThemedText>{selectedDate.toLocaleDateString('en-GB')}</ThemedText>
                 <TouchableOpacity onPress={() => adjustSelectedDate("forward")} style={[styles.dateButton, styles.dateForwardButton]}>
-                    <Octicons name="arrow-right" size={24} />
+                    <ThemedOcticon name="arrow-right" size={24} />
                 </TouchableOpacity>
             </View >
-            <TouchableOpacity style={styles.floatingActionButton} onPress={addTask}>
-                <Octicons name="diff-added" size={24} color={"white"} />
+            <TouchableOpacity style={[styles.floatingActionButton, { backgroundColor: fabColor }]} onPress={addTask}>
+                <Octicons name="diff-added" size={24} color="white" />
             </TouchableOpacity>
             <FlatList
                 data={getFilteredTasks()}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
                     <TouchableOpacity onPress={() => addTask(item.id)}>
-                        <View style={styles.taskContainer}>
-                            <Text>{item.title}</Text>
+                        <BlurView intensity={colorScheme === 'dark' ? 50 : 70}  
+                            tint="light"
+                            style={styles.taskContainer}
+                        >
+                            <ThemedText>{item.title}</ThemedText>
                             <TouchableOpacity onPress={() => toggleTask(item.id)}>
-                                <View style={styles.checkboxContainer}>
+                                <View style={[styles.checkboxContainer, {borderColor: checkboxContainerColor}]}>
                                     {item.completed && (
-                                        <Octicons name="check" size={24} color="green" />
+                                        <ThemedOcticon name="check" size={24} />
                                     )}
                                 </View>
                             </TouchableOpacity>
-                        </View>
+                        </BlurView>
                     </TouchableOpacity>
                 )}
             />
@@ -100,8 +110,7 @@ export default function TaskList() {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-        backgroundColor: "white"
+        flex: 1
     },
     dateContainer: {
         height: "8%",
@@ -124,9 +133,6 @@ const styles = StyleSheet.create({
     dateForwardButton: {
         right: 0
     },
-    dateText: {
-        color: "white"
-    },
     floatingActionButton: {
         width: 60,
         height: 60,
@@ -142,27 +148,28 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowRadius: 3,
         zIndex: 9999,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.48)',
     },
     taskContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: "white",
         margin: 10,
         padding: 12,
-        borderWidth: 1,
-        borderColor: "lightgray",
         borderRadius: 10,
-        shadowColor: 'rgba(0, 0, 0, 0.2)',
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 3
+        overflow: 'hidden',
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.8,
+        shadowRadius: 4,
+        elevation: 5,
     },
     checkboxContainer: {
         width: 26,
         height: 26,
         paddingLeft: 2,
         borderWidth: 2,
-        borderColor: "green",
         zIndex: 9999
     }
 });
