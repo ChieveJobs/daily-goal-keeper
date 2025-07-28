@@ -1,15 +1,31 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity } from "react-native";
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { StyleSheet, TouchableOpacity, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ThemedText from "./components/ThemedText";
+import ThemedTextInput from "./components/ThemedTextInput";
 import { loadTasks, saveTasks } from "./utils/storage";
 
 export default function AddTask() {
   const { taskId, dateOfTask } = useLocalSearchParams();
   const router = useRouter();
+  const navigation = useNavigation();
+  const colorScheme = useColorScheme();
+
   const [tasks, setTasks] = useState([]);
   const [titleInput, onChangeTitleText] = useState("");
   const [descriptionInput, onChangeDescriptionText] = useState("");
+
+  // Theme colors for buttons
+  const green = colorScheme === "dark" ? "#34d399" : "#10b981";
+  const red = colorScheme === "dark" ? "#f87171" : "#ef4444";
+  const gray = colorScheme === "dark" ? "#6b7280" : "#d1d5db";
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: Number(taskId) ? "Edit Task" : "Add Task",
+    });
+  }, [taskId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -30,9 +46,7 @@ export default function AddTask() {
     }
   }, [taskId, tasks]);
 
-  const cancel = () => {
-    router.back();
-  };
+  const cancel = () => router.back();
 
   const deleteTask = async () => {
     const updatedTasks = tasks.filter(task => task.id !== Number(taskId));
@@ -50,7 +64,7 @@ export default function AddTask() {
     if (id) {
       updatedTasks = tasks.map(task =>
         task.id === id
-          ? { ...task, title: titleInput, description: descriptionInput }
+          ? { ...task, title: titleInput, description: descriptionInput, taskDate: dateOfTask }
           : task
       );
     } else {
@@ -59,7 +73,7 @@ export default function AddTask() {
         id: maxId + 1,
         title: titleInput,
         description: descriptionInput,
-        taskDate: dateOfTask
+        taskDate: dateOfTask,
       };
       updatedTasks = [...tasks, newTask];
     }
@@ -69,72 +83,94 @@ export default function AddTask() {
     router.back();
   };
 
-
-
   return (
     <SafeAreaView style={styles.container}>
-      <TextInput value={titleInput} placeholder="Title" style={[styles.inputBox, styles.titleInput]} onChangeText={onChangeTitleText} />
-      <TextInput value={descriptionInput} multiline={true} placeholder="Description" style={[styles.inputBox, styles.descriptionInput]} onChangeText={onChangeDescriptionText} />
-      <TouchableOpacity style={[styles.button, styles.addButton]} onPress={saveTask}>
-        <Text style={styles.buttonText}>{Number(taskId) ? "Edit" : "Add"}</Text>
-      </TouchableOpacity>
-      {Number(taskId) ? (
-        <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={deleteTask}>
-          <Text style={styles.buttonText}>Delete</Text>
+      <ThemedTextInput
+        value={titleInput}
+        placeholder="Title"
+        onChangeText={onChangeTitleText}
+        style={[styles.inputBox, styles.titleInput]}
+      />
+      <ThemedTextInput
+        value={descriptionInput}
+        multiline
+        placeholder="Description"
+        onChangeText={onChangeDescriptionText}
+        style={[styles.inputBox, styles.descriptionInput]}
+      />
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: green }]}
+          onPress={saveTask}
+          activeOpacity={0.8}
+        >
+          <ThemedText style={styles.buttonText}>
+            {Number(taskId) ? "Save" : "Add"}
+          </ThemedText>
         </TouchableOpacity>
-      ) : null}
-      <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={cancel}>
-        <Text style={styles.buttonText}>Cancel</Text>
-      </TouchableOpacity>
+
+        {Number(taskId) ? (
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: red }]}
+            onPress={deleteTask}
+            activeOpacity={0.8}
+          >
+            <ThemedText style={styles.buttonText}>Delete</ThemedText>
+          </TouchableOpacity>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: gray }]}
+          onPress={cancel}
+          activeOpacity={0.8}
+        >
+          <ThemedText style={styles.buttonText}>Cancel</ThemedText>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
+    padding: 20,
   },
   inputBox: {
-    fontSize: 24,
-    borderWidth: 2,
-    borderColor: "lightgray",
-    padding: 10,
-    marginTop: 10
+    marginBottom: 16,
   },
   titleInput: {
-
+    height: 50,
   },
   descriptionInput: {
-    height: 200
+    height: 150,
+    textAlignVertical: "top",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: "auto",
+    marginBottom: 20,
+    zIndex: 9999
   },
   button: {
-    height: 40,
-    width: "30%",
-    borderRadius: 20,
-    color: "black",
+    flex: 1,
+    marginHorizontal: 5,
+    paddingVertical: 12,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 9999
   },
   buttonText: {
-    fontSize: 24,
-    textAlign: "center",
-    justifyContent: "center",
-    paddingTop: 2
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
   },
-  addButton: {
-    backgroundColor: "green",
-    position: "absolute",
-    bottom: 40,
-    right: 10
-  },
-  deleteButton: {
-    backgroundColor: "red",
-    position: "absolute",
-    bottom: 40,
-    left: "35%"
-  },
-  cancelButton: {
-    backgroundColor: "lightgray",
-    position: "absolute",
-    bottom: 40,
-    left: 10
-  }
 });
