@@ -1,7 +1,6 @@
 //#region Imports 
 import Octicons from "@expo/vector-icons/Octicons";
 import { useIsFocused } from "@react-navigation/native";
-import { BlurView } from "expo-blur";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -19,6 +18,7 @@ import Animated, {
     withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AnimatedTaskItem from "./components/AnimatedTaskItem";
 import ThemedOcticon from "./components/ThemedOcticon";
 import ThemedText from "./components/ThemedText";
 import { loadTasks, saveTasks } from "./utils/storage";
@@ -28,7 +28,7 @@ export default function TaskList() {
     // Hooks
     const [selectedDate, setDate] = useState(new Date());
     const [tasks, setTasks] = useState([]);
-    const [visible, setVisible] = useState(true); // 👈 Visibility control
+    const [visible, setVisible] = useState(true);
     const router = useRouter();
     const isFocused = useIsFocused();
 
@@ -43,7 +43,7 @@ export default function TaskList() {
             ? "rgba(39, 35, 35, 0.54)"
             : "rgba(255, 255, 255, 0.4)";
 
-    // Animations
+    // Animations for main container
     const slideX = useSharedValue(0);
     const opacity = useSharedValue(1);
 
@@ -52,25 +52,25 @@ export default function TaskList() {
         opacity: opacity.value,
     }));
 
-    const getFilteredTasks = () => {
-        const formattedDate = selectedDate.toLocaleDateString("en-GB");
+    const formattedDate = selectedDate.toLocaleDateString("en-GB");
 
+    const getFilteredTasks = () => {
         return [
             {
                 title: 'Completed',
-                data: tasks.filter((task) => task.completed),
+                data: tasks.filter((task) => task.completed && task.date === formattedDate),
             },
             {
                 title: 'High priority',
-                data: tasks.filter((task) => task.priority === "high" && !task.completed && task.taskDate === formattedDate),
+                data: tasks.filter((task) => task.priority === "high" && !task.completed && task.date === formattedDate),
             },
             {
                 title: 'Medium priority',
-                data: tasks.filter((task) => task.priority === "medium" && !task.completed && task.taskDate === formattedDate),
+                data: tasks.filter((task) => task.priority === "medium" && !task.completed && task.date === formattedDate),
             },
             {
                 title: 'Low priority',
-                data: tasks.filter((task) => task.priority === "low" && !task.completed && task.taskDate === formattedDate),
+                data: tasks.filter((task) => task.priority === "low" && !task.completed && task.date === formattedDate),
             }
         ];
     };
@@ -94,7 +94,6 @@ export default function TaskList() {
     const adjustSelectedDate = (direction) => {
         const offset = direction === "forward" ? -300 : 300;
 
-        // Animate list off-screen
         slideX.value = withTiming(offset, { duration: 150 });
         opacity.value = withTiming(0, { duration: 150 }, () => {
             runOnJS(handlePostSlideOut)(direction, offset);
@@ -102,22 +101,20 @@ export default function TaskList() {
     };
 
     const handlePostSlideOut = (direction, offset) => {
-        setVisible(false); // Hide old list after it has slid out
+        setVisible(false); 
 
         setTimeout(() => {
             const newDate = new Date(selectedDate);
             newDate.setDate(newDate.getDate() + (direction === "forward" ? 1 : -1));
             setDate(newDate);
 
-            // Start new list off-screen in opposite direction
             slideX.value = -offset;
 
-            setVisible(true); // Show new list
+            setVisible(true);
 
-            // Animate in
             slideX.value = withTiming(0, { duration: 150 });
             opacity.value = withTiming(1, { duration: 150 });
-        }, 10); // Allow time for list to unmount
+        }, 10);
     };
 
     const addTask = (id) => {
@@ -138,10 +135,9 @@ export default function TaskList() {
         saveTasks(updated);
     };
 
-    // Improved pan gesture for horizontal swipe with simultaneous vertical scroll
     const panGesture = Gesture.Pan()
-        .activeOffsetX([-15, 15])   // activate only after horizontal move of 15px
-        .failOffsetY([-10, 10])     // fail gesture if vertical move > 10px (means mostly vertical)
+        .activeOffsetX([-15, 15])   
+        .failOffsetY([-10, 10])     
         .onUpdate((e) => {
             slideX.value = e.translationX;
         })
@@ -156,52 +152,88 @@ export default function TaskList() {
 
     const simultaneousGesture = Gesture.Simultaneous(panGesture);
 
+    const sectionIsFinished = (section) => {
+        if (section.title === "Completed") {
+            return false;
+        }
+
+        if (section.data.filter((task) => !task.completed).length === 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    const getProgressBarSegments = () => {
+        const filteredTasks = tasks.filter(task => task.date === formattedDate);
+
+        const orderedTasks = [];
+
+        for (const task of filteredTasks) {
+            if (task.completed) orderedTasks.push(task);
+        }
+
+        for (const task of filteredTasks) {
+            if (!task.completed) orderedTasks.push(task);
+        }
+
+        return orderedTasks.map((task, i) => (
+            <View
+                key={i}
+                style={{
+                    flex: 1,
+                    backgroundColor: task.completed
+                        ? colorScheme === "dark"
+                            ? "rgba(34, 197, 94, 0.8)"
+                            : "rgba(34, 197, 94, 0.6)"
+                        : colorScheme === "dark"
+                            ? "rgba(239, 68, 68, 0.4)"
+                            : "rgba(239, 68, 68, 0.3)",
+                }}
+            />
+        ));
+    };
+
+    const getProgressBarText = () => {
+        const filteredTasks = tasks.filter((task) => task.date === formattedDate);
+        const completedTasks = filteredTasks.filter((task) => task.completed);
+
+        return <ThemedText>Completed tasks: {completedTasks.length} / {filteredTasks.length}</ThemedText>
+    }
+
     const renderList = () => (
         <Animated.View style={animatedStyle}>
             <SectionList
                 style={styles.sectionList}
                 sections={getFilteredTasks()}
-                renderSectionHeader={({ section: { title } }) => (
-                    <ThemedText style={styles.sectionHeader}>{title}</ThemedText>
-                )}
-                renderItem={({ item }) => (
-                    <TouchableOpacity onPress={() => addTask(item.id)} activeOpacity={0.9}>
-                        <BlurView
-                            intensity={colorScheme === "dark" ? 40 : 60}
-                            tint={colorScheme === "dark" ? "dark" : "light"}
-                            style={[
-                                styles.taskContainer,
-                                {
-                                    backgroundColor:
-                                        colorScheme === "dark"
-                                            ? "rgba(28,28,30,0.6)"
-                                            : "rgba(255,255,255,0.7)",
-                                    borderLeftColor: item.completed ? "#10b981" : "#fbbf24",
-                                    borderLeftWidth: 6,
-                                },
-                            ]}
-                        >
-                            <View style={styles.taskTextContainer}>
-                                <ThemedText style={styles.taskTitle}>{item.title}</ThemedText>
-                                <ThemedText style={styles.taskSubtitle}>
-                                    {item.completed ? "Completed" : "Pending"}
-                                </ThemedText>
+                SectionSeparatorComponent={() => <View style={{ height: 4 }} />}
+                renderSectionHeader={({ section }) => {
+                    return (
+                        <View style={styles.sectionHeader}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <ThemedOcticon name="checklist" size={16} color="#6b7280" style={{ marginRight: 6 }} />
+                                <ThemedText style={styles.sectionHeaderText}>{section.title}</ThemedText>
                             </View>
-                            <TouchableOpacity
-                                onPress={() => toggleTask(item.id)}
-                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // expand touchable area
-                            >
-                                <View
-                                    style={[
-                                        styles.checkboxContainer,
-                                        { borderColor: checkboxContainerColor },
-                                    ]}
-                                >
-                                    {item.completed && <ThemedOcticon name="check" size={20} />}
+
+                            {sectionIsFinished(section) && (
+                                <View style={{ paddingTop: 4 }}>
+                                    <ThemedText style={{ fontStyle: 'italic', color: '#6b7280' }}>
+                                        All {section.title.toLocaleLowerCase()} tasks done. Good job!
+                                    </ThemedText>
                                 </View>
-                            </TouchableOpacity>
-                        </BlurView>
-                    </TouchableOpacity>
+                            )}
+                        </View>
+                    );
+                }}
+
+                renderItem={({ item }) => (
+                    <AnimatedTaskItem
+                        item={item}
+                        onPress={addTask}
+                        onToggle={toggleTask}
+                        colorScheme={colorScheme}
+                        checkboxContainerColor={checkboxContainerColor}
+                    />
                 )}
             />
         </Animated.View>
@@ -233,6 +265,12 @@ export default function TaskList() {
                 <Octicons name="diff-added" size={24} color="white" />
             </TouchableOpacity>
 
+            <View style={styles.progressBarWrapper}>
+                <View style={styles.progressBar}>
+                    {getProgressBarSegments()}
+                </View>
+                <ThemedText style={styles.progressBarText}>{getProgressBarText()}</ThemedText>
+            </View>
             {isFocused && visible && (
                 <GestureDetector gesture={simultaneousGesture}>
                     {renderList()}
@@ -250,8 +288,7 @@ const styles = StyleSheet.create({
         height: "8%",
         width: "100%",
         justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 14,
+        alignItems: "center"
     },
     dateButton: {
         position: "absolute",
@@ -282,20 +319,29 @@ const styles = StyleSheet.create({
         elevation: 8,
         zIndex: 9999,
     },
-    taskContainer: {
+    progressBarWrapper: {
+        width: "100%",
+        height: 40,
+        marginBottom: 16,
+    },
+    progressBar: {
         flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginHorizontal: 16,
-        marginVertical: 8,
-        padding: 14,
-        borderRadius: 12,
+        height: 30,
+        width: "100%",
+        backgroundColor: "#6d6d6d3d",
+        borderRadius: 6,
         overflow: "hidden",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-        elevation: 3,
+    },
+    progressBarText: {
+        position: "absolute",
+        top: 4,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        textAlign: "center",
+        fontWeight: "600",
+        color: "#333",
+        zIndex: 10,
     },
     taskTextContainer: {
         flex: 1,
@@ -325,5 +371,9 @@ const styles = StyleSheet.create({
     sectionHeader: {
         paddingLeft: 20,
         paddingBottom: 10
+    },
+    sectionHeaderText: {
+        fontSize: 16,
+        fontWeight: "500"
     }
 });

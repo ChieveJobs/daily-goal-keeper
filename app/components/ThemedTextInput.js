@@ -7,10 +7,10 @@ export default function ThemedTextInput({ style, ...props }) {
 
   // Define dynamic colors based on theme and focus state
   const borderColor = focused
-    ? scheme === 'dark' ? '#60a5fa' : '#2563eb' // Focused blue
-    : scheme === 'dark' ? '#444' : '#ccc';     // Default gray
+    ? scheme === 'dark' ? '#60a5fa' : '#2563eb' 
+    : scheme === 'dark' ? '#444' : '#ccc';    
 
-  const backgroundColor = scheme === 'dark' ? '#1f2937' : '#f9fafb'; // gray-800 / gray-100
+  const backgroundColor = scheme === 'dark' ? '#1f2937' : '#f9fafb'; 
   const textColor = scheme === 'dark' ? '#fff' : '#000';
   const placeholderColor = scheme === 'dark' ? '#888' : '#999';
 

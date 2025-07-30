@@ -26,7 +26,7 @@ export default function AddTask() {
   const [tasks, setTasks] = useState([]);
   const [titleInput, onChangeTitleText] = useState("");
   const [descriptionInput, onChangeDescriptionText] = useState("");
-  const [selectedPriority, setSelectedPriority] = useState("");
+  const [selectedPriority, setSelectedPriority] = useState("high");
 
   // Theme-based colors
   const green = colorScheme === "dark" ? "#34d399" : "#10b981";
@@ -81,7 +81,7 @@ export default function AddTask() {
               ...task,
               title: titleInput,
               description: descriptionInput,
-              taskDate: dateOfTask,
+              date: dateOfTask,
               priority: selectedPriority,
             }
           : task
@@ -95,7 +95,7 @@ export default function AddTask() {
         id: maxId + 1,
         title: titleInput,
         description: descriptionInput,
-        taskDate: dateOfTask,
+        date: dateOfTask,
         priority: selectedPriority,
       };
       updatedTasks = [...tasks, newTask];
@@ -126,6 +126,7 @@ export default function AddTask() {
         label="Select Priority"
         selected={selectedPriority}
         onChange={setSelectedPriority}
+        
         options={[
           { label: "High", value: "high" },
           { label: "Medium", value: "medium" },
