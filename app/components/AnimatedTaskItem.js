@@ -1,33 +1,81 @@
 import { BlurView } from "expo-blur";
+import { useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import {
-    Gesture,
-    GestureDetector,
+  Gesture,
+  GestureDetector,
 } from "react-native-gesture-handler";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring
 } from "react-native-reanimated";
 import ThemedText from "./ThemedText";
+
+const ITEM_HEIGHT = 60;
 
 const AnimatedTaskItem = ({
   item,
   onPress,
   onToggle,
   colorScheme,
+  sectionsLayout,
+  draggingItem,
+  draggingY,
+  onHoverSectionChange
 }) => {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+  const lastHoverSection = useRef(null);
+
+  const checkSectionHit = (absoluteY) => {
+    if (!sectionsLayout.current || Object.keys(sectionsLayout.current).length === 0) {
+      return null;
+    }
+
+    const hit = Object.entries(sectionsLayout.current).find(
+      ([_, section]) => section.y <= absoluteY && absoluteY <= section.y + section.height
+    );
+
+    if (hit) {
+      return hit[0];
+    }
+
+    return null;
+  };
+
+  // Wrap check + notify in one function
+  const checkAndNotifySectionHit = (absoluteY) => {
+    const hitSection = checkSectionHit(absoluteY);
+    if (lastHoverSection.current !== hitSection) {
+      lastHoverSection.current = hitSection;
+      if (onHoverSectionChange) {
+        onHoverSectionChange(hitSection);
+      }
+    }
+  };
 
   const panGesture = Gesture.Pan()
+    .onStart(() => {
+      draggingItem.value = item.id;
+    })
     .onUpdate((event) => {
       translateX.value = event.translationX;
       translateY.value = event.translationY;
+
+      // Fix: Use .value for shared value assignment
+      draggingY.value = event.absoluteY - ITEM_HEIGHT / 2;
+
+      runOnJS(checkAndNotifySectionHit)(event.absoluteY);
     })
-    .onEnd(() => {
+    .onEnd((event) => {
+      // Animate back to original position
       translateX.value = withSpring(0);
       translateY.value = withSpring(0);
+      draggingItem.value = null;
+      draggingY.value = 0;
+      runOnJS(checkAndNotifySectionHit)(0);
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -35,6 +83,8 @@ const AnimatedTaskItem = ({
       { translateX: translateX.value },
       { translateY: translateY.value },
     ],
+    // Add zIndex when dragging to ensure item appears above others
+    zIndex: draggingItem.value === item.id ? 1000 : 1,
   }));
 
   const handleToggle = () => onToggle(item.id);
@@ -73,6 +123,7 @@ const AnimatedTaskItem = ({
 
 const styles = StyleSheet.create({
   taskContainer: {
+    height: ITEM_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

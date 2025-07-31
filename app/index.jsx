@@ -2,9 +2,9 @@
 import Octicons from "@expo/vector-icons/Octicons";
 import { useIsFocused } from "@react-navigation/native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
-    SectionList,
+    ScrollView,
     StyleSheet,
     TouchableOpacity,
     View,
@@ -24,13 +24,20 @@ import ThemedText from "./components/ThemedText";
 import { loadTasks, saveTasks } from "./utils/storage";
 //#endregion
 
-export default function TaskList() {
+export default function Index() {
     // Hooks
     const [selectedDate, setDate] = useState(new Date());
     const [tasks, setTasks] = useState([]);
     const [visible, setVisible] = useState(true);
     const router = useRouter();
     const isFocused = useIsFocused();
+    const sectionsLayout = useRef({});
+    const scrollViewRef = useRef(null);
+    const sectionContainerRefs = useRef({});
+    const draggingItem = useSharedValue(null);
+    const draggingY = useSharedValue(0);
+    const [hoverSection, setHoverSection] = useState(null);
+
 
     // Styles
     const colorScheme = useColorScheme();
@@ -46,6 +53,10 @@ export default function TaskList() {
     // Animations for main container
     const slideX = useSharedValue(0);
     const opacity = useSharedValue(1);
+
+    const handleHoverSectionChange = (sectionTitle) => {
+        setHoverSection(sectionTitle);
+    };
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ translateX: slideX.value }],
@@ -75,6 +86,27 @@ export default function TaskList() {
         ];
     };
 
+    // Function to measure section layouts relative to ScrollView
+    const measureSectionLayouts = () => {
+        const sections = getFilteredTasks();
+
+        sections.forEach((section) => {
+            const sectionRef = sectionContainerRefs.current[section.title];
+            if (sectionRef) {
+                sectionRef.measureInWindow((x, y, width, height) => {
+                    sectionsLayout.current[section.title] = {
+                        x,
+                        y,
+                        width,
+                        height,
+                    };
+                });
+            } else {
+            }
+        });
+    };
+
+
     useFocusEffect(
         useCallback(() => {
             let isActive = true;
@@ -82,6 +114,10 @@ export default function TaskList() {
                 const loaded = await loadTasks();
                 if (isActive) {
                     setTasks(loaded);
+                    // Measure layouts after tasks are loaded and rendered
+                    setTimeout(() => {
+                        measureSectionLayouts();
+                    }, 100);
                 }
             };
             load();
@@ -90,6 +126,16 @@ export default function TaskList() {
             };
         }, [])
     );
+
+    // Re-measure when tasks change
+    const handleTasksChange = (newTasks) => {
+        setTasks(newTasks);
+        saveTasks(newTasks);
+        // Re-measure layouts after state update
+        setTimeout(() => {
+            measureSectionLayouts();
+        }, 50);
+    };
 
     const adjustSelectedDate = (direction) => {
         const offset = direction === "forward" ? -300 : 300;
@@ -101,7 +147,7 @@ export default function TaskList() {
     };
 
     const handlePostSlideOut = (direction, offset) => {
-        setVisible(false); 
+        setVisible(false);
 
         setTimeout(() => {
             const newDate = new Date(selectedDate);
@@ -114,6 +160,11 @@ export default function TaskList() {
 
             slideX.value = withTiming(0, { duration: 150 });
             opacity.value = withTiming(1, { duration: 150 });
+
+            // Re-measure layouts when date changes
+            setTimeout(() => {
+                measureSectionLayouts();
+            }, 200);
         }, 10);
     };
 
@@ -127,17 +178,16 @@ export default function TaskList() {
         });
     };
 
-    const toggleTask = (id) => {
+    const toggleTask = (id, priority, completed) => {
         const updated = tasks.map((task) =>
-            task.id === id ? { ...task, completed: !task.completed } : task
+            task.id === id ? { ...task, priority: priority, completed: completed } : task
         );
-        setTasks(updated);
-        saveTasks(updated);
+        handleTasksChange(updated);
     };
 
     const panGesture = Gesture.Pan()
-        .activeOffsetX([-15, 15])   
-        .failOffsetY([-10, 10])     
+        .activeOffsetX([-15, 15])
+        .failOffsetY([-10, 10])
         .onUpdate((e) => {
             slideX.value = e.translationX;
         })
@@ -157,11 +207,17 @@ export default function TaskList() {
             return false;
         }
 
-        if (section.data.filter((task) => !task.completed).length === 0) {
-            return true;
+        if (section.data.filter((task) => !task.completed).length === 0 && section.data.length !== 0) {
+            return "All " + section.title.toLocaleLowerCase() + " tasks done. Good job!";
+        } if (section.data.filter((task) => !task.completed).length === 0 && section.data.length === 0) {
+            return "No tasks added";
         } else {
             return false;
         }
+    }
+
+    const tasksNotEmpty = () => {
+        return getFilteredTasks().some(section => section.data.length > 0);
     }
 
     const getProgressBarSegments = () => {
@@ -201,43 +257,80 @@ export default function TaskList() {
         return <ThemedText>Completed tasks: {completedTasks.length} / {filteredTasks.length}</ThemedText>
     }
 
-    const renderList = () => (
-        <Animated.View style={animatedStyle}>
-            <SectionList
-                style={styles.sectionList}
-                sections={getFilteredTasks()}
-                SectionSeparatorComponent={() => <View style={{ height: 4 }} />}
-                renderSectionHeader={({ section }) => {
-                    return (
-                        <View style={styles.sectionHeader}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <ThemedOcticon name="checklist" size={16} color="#6b7280" style={{ marginRight: 6 }} />
-                                <ThemedText style={styles.sectionHeaderText}>{section.title}</ThemedText>
-                            </View>
+    const handleScrollViewLayout = () => {
+        // Measure section layouts when ScrollView is laid out
+        setTimeout(() => {
+            measureSectionLayouts();
+        }, 50);
+    };
 
-                            {sectionIsFinished(section) && (
-                                <View style={{ paddingTop: 4 }}>
-                                    <ThemedText style={{ fontStyle: 'italic', color: '#6b7280' }}>
-                                        All {section.title.toLocaleLowerCase()} tasks done. Good job!
-                                    </ThemedText>
+    const renderList = () => {
+        const sections = getFilteredTasks();
+
+        return (
+            <Animated.View style={animatedStyle}>
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={styles.sectionList}
+                    onLayout={handleScrollViewLayout}
+                >
+                    {sections.map((section, sectionIndex) => {
+                        const isHovered = section.title === hoverSection;
+                        return (
+                            <View
+                                key={section.title}
+                                ref={(ref) => {
+                                    if (ref) {
+                                        sectionContainerRefs.current[section.title] = ref;
+                                    }
+                                }}
+                                style={[
+                                    styles.sectionContainer,
+                                    isHovered && styles.hoveredSection, // add this
+                                ]}
+                                onLayout={() => {
+                                    setTimeout(() => {
+                                        measureSectionLayouts();
+                                    }, 10);
+                                }}
+                            >
+                                {/* Section Header */}
+                                <View style={styles.sectionHeader}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <ThemedOcticon name="checklist" size={16} color="#6b7280" style={{ marginRight: 6 }} />
+                                        <ThemedText style={styles.sectionHeaderText}>{section.title}</ThemedText>
+                                    </View>
+
+                                    <View style={{ paddingTop: 4 }}>
+                                        <ThemedText style={{ fontStyle: 'italic', color: '#6b7280' }}>
+                                            {sectionIsFinished(section)}
+                                        </ThemedText>
+                                    </View>
                                 </View>
-                            )}
-                        </View>
-                    );
-                }}
 
-                renderItem={({ item }) => (
-                    <AnimatedTaskItem
-                        item={item}
-                        onPress={addTask}
-                        onToggle={toggleTask}
-                        colorScheme={colorScheme}
-                        checkboxContainerColor={checkboxContainerColor}
-                    />
-                )}
-            />
-        </Animated.View>
-    );
+                                {/* Section Items */}
+                                {section.data.map((item, itemIndex) => (
+                                    <AnimatedTaskItem
+                                        key={item.id}
+                                        item={item}
+                                        onPress={addTask}
+                                        onToggle={toggleTask}
+                                        colorScheme={colorScheme}
+                                        checkboxContainerColor={checkboxContainerColor}
+                                        sectionsLayout={sectionsLayout}
+                                        draggingItem={draggingItem}
+                                        draggingY={draggingY}
+                                        onHoverSectionChange={handleHoverSectionChange}
+                                    />
+                                ))}
+                            </View>
+                        );
+                    })}
+                </ScrollView>
+            </Animated.View>
+        );
+    };
+
 
     return (
         <SafeAreaView style={styles.container}>
@@ -265,12 +358,14 @@ export default function TaskList() {
                 <Octicons name="diff-added" size={24} color="white" />
             </TouchableOpacity>
 
-            <View style={styles.progressBarWrapper}>
-                <View style={styles.progressBar}>
-                    {getProgressBarSegments()}
+            {tasksNotEmpty() && (
+                <View style={styles.progressBarWrapper}>
+                    <View style={styles.progressBar}>
+                        {getProgressBarSegments()}
+                    </View>
+                    <ThemedText style={styles.progressBarText}>{getProgressBarText()}</ThemedText>
                 </View>
-                <ThemedText style={styles.progressBarText}>{getProgressBarText()}</ThemedText>
-            </View>
+            )}
             {isFocused && visible && (
                 <GestureDetector gesture={simultaneousGesture}>
                     {renderList()}
@@ -322,14 +417,11 @@ const styles = StyleSheet.create({
     progressBarWrapper: {
         width: "100%",
         height: 40,
-        marginBottom: 16,
     },
     progressBar: {
         flexDirection: "row",
         height: 30,
         width: "100%",
-        backgroundColor: "#6d6d6d3d",
-        borderRadius: 6,
         overflow: "hidden",
     },
     progressBarText: {
@@ -368,12 +460,21 @@ const styles = StyleSheet.create({
     sectionList: {
         height: "100%",
     },
+    sectionContainer: {
+        marginVertical: 4
+    },
     sectionHeader: {
         paddingLeft: 20,
-        paddingBottom: 10
+        paddingBottom: 10,
     },
     sectionHeaderText: {
         fontSize: 16,
         fontWeight: "500"
-    }
+    },
+    hoveredSection: {
+        borderWidth: 2,
+        borderColor: '#22c55e', // bright green or any color you like
+        borderRadius: 8,
+        backgroundColor: 'rgba(34, 197, 94, 0.15)', // subtle green background highlight
+    },
 });
