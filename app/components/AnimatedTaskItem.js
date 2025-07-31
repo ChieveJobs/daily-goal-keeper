@@ -18,16 +18,26 @@ const ITEM_HEIGHT = 60;
 const AnimatedTaskItem = ({
   item,
   onPress,
-  onToggle,
   colorScheme,
   sectionsLayout,
   draggingItem,
   draggingY,
-  onHoverSectionChange
+  onHoverSectionChange,
+  onDraggingEnd
 }) => {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const lastHoverSection = useRef(null);
+
+  const checkAndNotifySectionHit = (absoluteY) => {
+    const hitSection = checkSectionHit(absoluteY);
+    if (lastHoverSection.current !== hitSection) {
+      lastHoverSection.current = hitSection;
+      if (onHoverSectionChange) {
+        onHoverSectionChange(hitSection);
+      }
+    }
+  };
 
   const checkSectionHit = (absoluteY) => {
     if (!sectionsLayout.current || Object.keys(sectionsLayout.current).length === 0) {
@@ -45,16 +55,18 @@ const AnimatedTaskItem = ({
     return null;
   };
 
-  // Wrap check + notify in one function
-  const checkAndNotifySectionHit = (absoluteY) => {
+  const adjustTaskSection = (id, absoluteY) => {
     const hitSection = checkSectionHit(absoluteY);
-    if (lastHoverSection.current !== hitSection) {
-      lastHoverSection.current = hitSection;
-      if (onHoverSectionChange) {
-        onHoverSectionChange(hitSection);
-      }
+    
+    if (hitSection === null) {
+      return;
     }
-  };
+    else if (hitSection !== 'Completed') {
+      onDraggingEnd(id, hitSection.toLowerCase().replace(" priority", ""), false);
+    } else {
+      onDraggingEnd(id, hitSection, true);
+    }
+  }
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
@@ -64,18 +76,22 @@ const AnimatedTaskItem = ({
       translateX.value = event.translationX;
       translateY.value = event.translationY;
 
-      // Fix: Use .value for shared value assignment
       draggingY.value = event.absoluteY - ITEM_HEIGHT / 2;
 
       runOnJS(checkAndNotifySectionHit)(event.absoluteY);
     })
     .onEnd((event) => {
-      // Animate back to original position
-      translateX.value = withSpring(0);
-      translateY.value = withSpring(0);
+      runOnJS(adjustTaskSection)(draggingItem.value, event.absoluteY);
+      runOnJS(onHoverSectionChange)(null);
+      const springConfig = {
+        damping: 20,
+        stiffness: 150,
+      };
+
+      translateX.value = withSpring(0, springConfig);
+      translateY.value = withSpring(0, springConfig);
       draggingItem.value = null;
       draggingY.value = 0;
-      runOnJS(checkAndNotifySectionHit)(0);
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -83,11 +99,8 @@ const AnimatedTaskItem = ({
       { translateX: translateX.value },
       { translateY: translateY.value },
     ],
-    // Add zIndex when dragging to ensure item appears above others
     zIndex: draggingItem.value === item.id ? 1000 : 1,
   }));
-
-  const handleToggle = () => onToggle(item.id);
 
   return (
     <GestureDetector gesture={panGesture}>
@@ -150,15 +163,6 @@ const styles = StyleSheet.create({
   taskSubtitle: {
     fontSize: 12,
     color: "#999",
-  },
-  checkboxContainer: {
-    width: 26,
-    height: 26,
-    paddingLeft: 2,
-    borderWidth: 2,
-    borderRadius: 5,
-    justifyContent: "center",
-    alignItems: "center",
   },
 });
 

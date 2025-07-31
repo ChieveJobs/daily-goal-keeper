@@ -25,23 +25,26 @@ import { loadTasks, saveTasks } from "./utils/storage";
 //#endregion
 
 export default function Index() {
-    // Hooks
+    //#region Hooks
+    const router = useRouter();
+
+    const isFocused = useIsFocused();
+
     const [selectedDate, setDate] = useState(new Date());
     const [tasks, setTasks] = useState([]);
     const [visible, setVisible] = useState(true);
-    const router = useRouter();
-    const isFocused = useIsFocused();
+    const [hoverSection, setHoverSection] = useState(null);
+
     const sectionsLayout = useRef({});
     const scrollViewRef = useRef(null);
     const sectionContainerRefs = useRef({});
+
     const draggingItem = useSharedValue(null);
     const draggingY = useSharedValue(0);
-    const [hoverSection, setHoverSection] = useState(null);
+    //#endregion
 
-
-    // Styles
+    //#region Styles
     const colorScheme = useColorScheme();
-    const checkboxContainerColor = colorScheme === "dark" ? "white" : "black";
     const fabColor = colorScheme === "dark"
         ? "rgba(52, 211, 153, 0.95)"
         : "rgba(16, 185, 129, 0.95)";
@@ -49,22 +52,79 @@ export default function Index() {
         colorScheme === "dark"
             ? "rgba(39, 35, 35, 0.54)"
             : "rgba(255, 255, 255, 0.4)";
+    //#endregion
 
-    // Animations for main container
+    //#region Date
+    const formattedDate = selectedDate.toLocaleDateString("en-GB");
+
+    const adjustSelectedDate = (direction) => {
+        const offset = direction === "forward" ? -300 : 300;
+
+        opacity.value = withTiming(0, { duration: 150 }, () => {
+            runOnJS(handlePostSlideOut)(direction, offset);
+        });
+    };
+    //#endregion
+
+    //#region Animations
     const slideX = useSharedValue(0);
     const opacity = useSharedValue(1);
-
-    const handleHoverSectionChange = (sectionTitle) => {
-        setHoverSection(sectionTitle);
-    };
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ translateX: slideX.value }],
         opacity: opacity.value,
     }));
 
-    const formattedDate = selectedDate.toLocaleDateString("en-GB");
+    const handleHoverSectionChange = (sectionTitle) => {
+        setHoverSection(sectionTitle);
+    };
 
+    const handlePostSlideOut = (direction, offset) => {
+        setVisible(false);
+
+        setTimeout(() => {
+            const newDate = new Date(selectedDate);
+            newDate.setDate(newDate.getDate() + (direction === "forward" ? 1 : -1));
+            setDate(newDate);
+
+            slideX.value = -offset;
+
+            setVisible(true);
+
+            slideX.value = withTiming(0, { duration: 150 });
+            opacity.value = withTiming(1, { duration: 150 });
+
+            setTimeout(() => {
+                measureSectionLayouts();
+            }, 200);
+        }, 10);
+    };
+
+    const panGesture = Gesture.Pan()
+        .activeOffsetX([-15, 15])
+        .failOffsetY([-10, 10])
+        .onUpdate((e) => {
+            slideX.value = e.translationX;
+        })
+        .onEnd((e) => {
+            if (Math.abs(e.translationX) > 80) {
+                const direction = e.translationX < 0 ? "forward" : "backward";
+                slideX.value = withTiming(
+                    direction === "forward" ? -300 : 300,
+                    { duration: 150 },
+                    () => {
+                        runOnJS(adjustSelectedDate)(direction);
+                    }
+                );
+            } else {
+                slideX.value = withTiming(0);
+            }
+        });
+
+    const simultaneousGesture = Gesture.Simultaneous(panGesture);
+    //#endregion
+
+    //#region Tasks
     const getFilteredTasks = () => {
         return [
             {
@@ -86,86 +146,13 @@ export default function Index() {
         ];
     };
 
-    // Function to measure section layouts relative to ScrollView
-    const measureSectionLayouts = () => {
-        const sections = getFilteredTasks();
-
-        sections.forEach((section) => {
-            const sectionRef = sectionContainerRefs.current[section.title];
-            if (sectionRef) {
-                sectionRef.measureInWindow((x, y, width, height) => {
-                    sectionsLayout.current[section.title] = {
-                        x,
-                        y,
-                        width,
-                        height,
-                    };
-                });
-            } else {
-            }
-        });
-    };
-
-
-    useFocusEffect(
-        useCallback(() => {
-            let isActive = true;
-            const load = async () => {
-                const loaded = await loadTasks();
-                if (isActive) {
-                    setTasks(loaded);
-                    // Measure layouts after tasks are loaded and rendered
-                    setTimeout(() => {
-                        measureSectionLayouts();
-                    }, 100);
-                }
-            };
-            load();
-            return () => {
-                isActive = false;
-            };
-        }, [])
-    );
-
     // Re-measure when tasks change
     const handleTasksChange = (newTasks) => {
         setTasks(newTasks);
         saveTasks(newTasks);
-        // Re-measure layouts after state update
         setTimeout(() => {
             measureSectionLayouts();
         }, 50);
-    };
-
-    const adjustSelectedDate = (direction) => {
-        const offset = direction === "forward" ? -300 : 300;
-
-        slideX.value = withTiming(offset, { duration: 150 });
-        opacity.value = withTiming(0, { duration: 150 }, () => {
-            runOnJS(handlePostSlideOut)(direction, offset);
-        });
-    };
-
-    const handlePostSlideOut = (direction, offset) => {
-        setVisible(false);
-
-        setTimeout(() => {
-            const newDate = new Date(selectedDate);
-            newDate.setDate(newDate.getDate() + (direction === "forward" ? 1 : -1));
-            setDate(newDate);
-
-            slideX.value = -offset;
-
-            setVisible(true);
-
-            slideX.value = withTiming(0, { duration: 150 });
-            opacity.value = withTiming(1, { duration: 150 });
-
-            // Re-measure layouts when date changes
-            setTimeout(() => {
-                measureSectionLayouts();
-            }, 200);
-        }, 10);
     };
 
     const addTask = (id) => {
@@ -178,39 +165,26 @@ export default function Index() {
         });
     };
 
-    const toggleTask = (id, priority, completed) => {
-        const updated = tasks.map((task) =>
-            task.id === id ? { ...task, priority: priority, completed: completed } : task
-        );
-        handleTasksChange(updated);
-    };
-
-    const panGesture = Gesture.Pan()
-        .activeOffsetX([-15, 15])
-        .failOffsetY([-10, 10])
-        .onUpdate((e) => {
-            slideX.value = e.translationX;
-        })
-        .onEnd((e) => {
-            if (Math.abs(e.translationX) > 80) {
-                const direction = e.translationX < 0 ? "forward" : "backward";
-                runOnJS(adjustSelectedDate)(direction);
-            } else {
-                slideX.value = withTiming(0);
-            }
+    const adjustTaskSection = (id, priority, completed) => {
+        setTasks(prevTasks => {
+            const updated = prevTasks.map(task =>
+                task.id === id ? { ...task, priority, completed } : task
+            );
+            saveTasks(updated);
+            setTimeout(measureSectionLayouts, 50);
+            return updated;
         });
 
-    const simultaneousGesture = Gesture.Simultaneous(panGesture);
+        setHoverSection("");
+    };
 
     const sectionIsFinished = (section) => {
         if (section.title === "Completed") {
             return false;
         }
-
-        if (section.data.filter((task) => !task.completed).length === 0 && section.data.length !== 0) {
+        
+        if (section.data.filter((task) => !task.completed).length === 0) {
             return "All " + section.title.toLocaleLowerCase() + " tasks done. Good job!";
-        } if (section.data.filter((task) => !task.completed).length === 0 && section.data.length === 0) {
-            return "No tasks added";
         } else {
             return false;
         }
@@ -219,7 +193,9 @@ export default function Index() {
     const tasksNotEmpty = () => {
         return getFilteredTasks().some(section => section.data.length > 0);
     }
+    //#endregion
 
+    //#region Progress bar
     const getProgressBarSegments = () => {
         const filteredTasks = tasks.filter(task => task.date === formattedDate);
 
@@ -256,9 +232,41 @@ export default function Index() {
 
         return <ThemedText>Completed tasks: {completedTasks.length} / {filteredTasks.length}</ThemedText>
     }
+    //#endregion
+
+    //#region Layout
+    useFocusEffect(
+        useCallback(() => {
+            const load = async () => {
+                const loaded = await loadTasks();
+                setTasks(loaded || []);
+                setTimeout(() => {
+                    measureSectionLayouts();
+                }, 100);
+            };
+            load();
+        }, [])
+    );
+
+    const measureSectionLayouts = () => {
+        const sections = getFilteredTasks();
+
+        sections.forEach((section) => {
+            const sectionRef = sectionContainerRefs.current[section.title];
+            if (sectionRef && sectionRef.measureInWindow) {
+                sectionRef.measureInWindow((x, y, width, height) => {
+                    sectionsLayout.current[section.title] = {
+                        x,
+                        y,
+                        width,
+                        height,
+                    };
+                });
+            }
+        });
+    };
 
     const handleScrollViewLayout = () => {
-        // Measure section layouts when ScrollView is laid out
         setTimeout(() => {
             measureSectionLayouts();
         }, 50);
@@ -274,7 +282,7 @@ export default function Index() {
                     style={styles.sectionList}
                     onLayout={handleScrollViewLayout}
                 >
-                    {sections.map((section, sectionIndex) => {
+                    {sections.map((section) => {
                         const isHovered = section.title === hoverSection;
                         return (
                             <View
@@ -286,7 +294,7 @@ export default function Index() {
                                 }}
                                 style={[
                                     styles.sectionContainer,
-                                    isHovered && styles.hoveredSection, // add this
+                                    isHovered && styles.hoveredSection
                                 ]}
                                 onLayout={() => {
                                     setTimeout(() => {
@@ -314,13 +322,12 @@ export default function Index() {
                                         key={item.id}
                                         item={item}
                                         onPress={addTask}
-                                        onToggle={toggleTask}
                                         colorScheme={colorScheme}
-                                        checkboxContainerColor={checkboxContainerColor}
                                         sectionsLayout={sectionsLayout}
                                         draggingItem={draggingItem}
                                         draggingY={draggingY}
                                         onHoverSectionChange={handleHoverSectionChange}
+                                        onDraggingEnd={adjustTaskSection}
                                     />
                                 ))}
                             </View>
@@ -330,7 +337,7 @@ export default function Index() {
             </Animated.View>
         );
     };
-
+    //#endregion
 
     return (
         <SafeAreaView style={styles.container}>
@@ -375,6 +382,7 @@ export default function Index() {
     );
 }
 
+//#region Styles
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -448,15 +456,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#999",
     },
-    checkboxContainer: {
-        width: 26,
-        height: 26,
-        paddingLeft: 2,
-        borderWidth: 2,
-        borderRadius: 5,
-        justifyContent: "center",
-        alignItems: "center",
-    },
     sectionList: {
         height: "100%",
     },
@@ -464,8 +463,7 @@ const styles = StyleSheet.create({
         marginVertical: 4
     },
     sectionHeader: {
-        paddingLeft: 20,
-        paddingBottom: 10,
+        paddingLeft: 20
     },
     sectionHeaderText: {
         fontSize: 16,
@@ -473,8 +471,9 @@ const styles = StyleSheet.create({
     },
     hoveredSection: {
         borderWidth: 2,
-        borderColor: '#22c55e', // bright green or any color you like
+        borderColor: '#22c55e',
         borderRadius: 8,
-        backgroundColor: 'rgba(34, 197, 94, 0.15)', // subtle green background highlight
+        backgroundColor: 'rgba(34, 197, 94, 0.15)',
     },
 });
+//#endregion

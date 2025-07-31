@@ -5,7 +5,6 @@ export default function ThemedTextInput({ style, ...props }) {
   const scheme = useColorScheme();
   const [focused, setFocused] = useState(false);
 
-  // Define dynamic colors based on theme and focus state
   const borderColor = focused
     ? scheme === 'dark' ? '#60a5fa' : '#2563eb' 
     : scheme === 'dark' ? '#444' : '#ccc';    
