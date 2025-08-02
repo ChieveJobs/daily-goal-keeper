@@ -29,6 +29,13 @@ const AnimatedTaskItem = ({
   const translateY = useSharedValue(0);
   const lastHoverSection = useRef(null);
 
+  const BLUR_VIEW_INTENSITY = colorScheme === "dark" ? 40 : 60;
+  const BLUR_VIEW_TINT = colorScheme === "dark" ? "dark" : "light";
+  const TASK_BACKGROUND_COLOR = colorScheme === "dark"
+    ? "rgba(28,28,30,0.6)"
+    : "rgba(255,255,255,0.7)";
+  const TASK_BORDER_LEFT_COLOR = item.completed ? "#10b981" : "#fbbf24";
+
   const checkAndNotifySectionHit = (absoluteY) => {
     const hitSection = checkSectionHit(absoluteY);
     if (lastHoverSection.current !== hitSection) {
@@ -57,7 +64,7 @@ const AnimatedTaskItem = ({
 
   const adjustTaskSection = (id, absoluteY) => {
     const hitSection = checkSectionHit(absoluteY);
-    
+
     if (hitSection === null) {
       return;
     }
@@ -107,16 +114,13 @@ const AnimatedTaskItem = ({
       <Animated.View style={[animatedStyle]}>
         <TouchableOpacity onPress={() => onPress(item.id)} activeOpacity={0.9}>
           <BlurView
-            intensity={colorScheme === "dark" ? 40 : 60}
-            tint={colorScheme === "dark" ? "dark" : "light"}
+            intensity={BLUR_VIEW_INTENSITY}
+            tint={BLUR_VIEW_TINT}
             style={[
               styles.taskContainer,
               {
-                backgroundColor:
-                  colorScheme === "dark"
-                    ? "rgba(28,28,30,0.6)"
-                    : "rgba(255,255,255,0.7)",
-                borderLeftColor: item.completed ? "#10b981" : "#fbbf24",
+                backgroundColor: TASK_BACKGROUND_COLOR,
+                borderLeftColor: TASK_BORDER_LEFT_COLOR,
                 borderLeftWidth: 6,
               },
             ]}

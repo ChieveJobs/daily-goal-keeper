@@ -1,3 +1,4 @@
+import Octicons from "@expo/vector-icons/Octicons";
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -11,6 +12,12 @@ import {
   View,
   useColorScheme,
 } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ThemedModalPicker from "./components/ThemedModalPicker";
 import ThemedText from "./components/ThemedText";
@@ -27,11 +34,32 @@ export default function AddTask() {
   const [titleInput, onChangeTitleText] = useState("");
   const [descriptionInput, onChangeDescriptionText] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("high");
+  const [titlePlaceHolderText, setTitlePlaceholderText] = useState("Title");
+  const [titleIsEmpty, setTitleIsEmpty] = useState(false);
 
-  // Theme-based colors
-  const green = colorScheme === "dark" ? "#34d399" : "#10b981";
-  const red = colorScheme === "dark" ? "#f87171" : "#ef4444";
-  const gray = colorScheme === "dark" ? "#6b7280" : "#d1d5db";
+  const SAVE_BUTTON = colorScheme === "dark" ? "#34d399" : "#10b981";
+  const DELETE_BUTTON = colorScheme === "dark" ? "#f87171" : "#ef4444";
+  const CANCEL_BUTTON = colorScheme === "dark" ? "#6b7280" : "#d1d5db";
+
+  const MODAL_OPTIONS = [
+    { label: "High", value: "high" },
+    { label: "Medium", value: "medium" },
+    { label: "Low", value: "low" }
+  ];
+
+  const slideX = useSharedValue(0);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: slideX.value }]
+  }));
+
+  const titleRequiredAnimation = () => {
+    slideX.value = withSequence(
+      withTiming(30, { duration: 50 }),
+      withTiming(-30, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+  };
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -69,8 +97,14 @@ export default function AddTask() {
   };
 
   const saveTask = async () => {
-    if (titleInput.trim() === "") return;
+    if (titleInput.trim() === "") {
+      setTitleIsEmpty(true);
+      setTitlePlaceholderText("A title is required");
+      titleRequiredAnimation();
+      return;
+    }
 
+    setTitleIsEmpty(false);
     const id = Number(taskId);
     let updatedTasks;
 
@@ -78,12 +112,12 @@ export default function AddTask() {
       updatedTasks = tasks.map((task) =>
         task.id === id
           ? {
-              ...task,
-              title: titleInput,
-              description: descriptionInput,
-              date: dateOfTask,
-              priority: selectedPriority,
-            }
+            ...task,
+            title: titleInput,
+            description: descriptionInput,
+            date: dateOfTask,
+            priority: selectedPriority,
+          }
           : task
       );
     } else {
@@ -106,14 +140,38 @@ export default function AddTask() {
     router.back();
   };
 
+  const copyEarlierTasksModal = () => {
+    router.push({
+            pathname: "/copyTask",
+            params: {
+                dateOfTask: dateOfTask,
+            },
+        });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ThemedTextInput
-        value={titleInput}
-        placeholder="Title"
-        onChangeText={onChangeTitleText}
-        style={[styles.inputBox, styles.titleInput]}
-      />
+      <View style={styles.titleInputContainer}>
+        <Animated.View style={[animatedStyle, styles.titleInputWrapper]}>
+          <ThemedTextInput
+            isRequiredButEmpty={titleIsEmpty}
+            value={titleInput}
+            placeholder={titlePlaceHolderText}
+            onChangeText={onChangeTitleText}
+            style={[styles.inputBox, styles.titleInput]}
+          />
+        </Animated.View>
+        <TouchableOpacity
+          style={[styles.copyButton, { backgroundColor: SAVE_BUTTON }]}
+          activeOpacity={0.8}
+          onPress={copyEarlierTasksModal}
+        >
+          <ThemedText style={styles.buttonText}>
+            <Octicons name="arrow-switch" size={16} color="white" />
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+
       <ThemedTextInput
         value={descriptionInput}
         multiline
@@ -126,17 +184,12 @@ export default function AddTask() {
         label="Select Priority"
         selected={selectedPriority}
         onChange={setSelectedPriority}
-        
-        options={[
-          { label: "High", value: "high" },
-          { label: "Medium", value: "medium" },
-          { label: "Low", value: "low" }
-        ]}
+        options={MODAL_OPTIONS}
       />
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: gray }]}
+          style={[styles.button, { backgroundColor: CANCEL_BUTTON }]}
           onPress={cancel}
           activeOpacity={0.8}
         >
@@ -144,7 +197,7 @@ export default function AddTask() {
         </TouchableOpacity>
         {Number(taskId) ? (
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: red }]}
+            style={[styles.button, { backgroundColor: DELETE_BUTTON }]}
             onPress={deleteTask}
             activeOpacity={0.8}
           >
@@ -152,13 +205,11 @@ export default function AddTask() {
           </TouchableOpacity>
         ) : null}
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: green }]}
+          style={[styles.button, { backgroundColor: SAVE_BUTTON }]}
           onPress={saveTask}
           activeOpacity={0.8}
         >
-          <ThemedText style={styles.buttonText}>
-            {Number(taskId) ? "Save" : "Add"}
-          </ThemedText>
+          <ThemedText style={styles.buttonText}>Save</ThemedText>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -170,11 +221,32 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  inputBox: {
+  titleInputContainer: {
+    flexDirection: "row",
     marginBottom: 16,
+  },
+  titleInputWrapper: {
+    flex: 4,
+    marginRight: 8,
   },
   titleInput: {
     height: 50,
+  },
+  copyButton: {
+    marginTop: 2,
+    flex: 1,
+    height: 45,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  inputBox: {
+    marginBottom: 16,
   },
   descriptionInput: {
     height: 150,

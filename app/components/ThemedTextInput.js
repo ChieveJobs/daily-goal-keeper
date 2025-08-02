@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { TextInput, useColorScheme } from 'react-native';
 
-export default function ThemedTextInput({ style, ...props }) {
+export default function ThemedTextInput({isRequiredButEmpty, style, ...props }) {
   const scheme = useColorScheme();
   const [focused, setFocused] = useState(false);
 
-  const borderColor = focused
+  const borderColor = focused 
     ? scheme === 'dark' ? '#60a5fa' : '#2563eb' 
     : scheme === 'dark' ? '#444' : '#ccc';    
+
+  const borderColorError = '#ff0000ff'
 
   const backgroundColor = scheme === 'dark' ? '#1f2937' : '#f9fafb'; 
   const textColor = scheme === 'dark' ? '#fff' : '#000';
@@ -21,7 +23,7 @@ export default function ThemedTextInput({ style, ...props }) {
       style={[
         {
           color: textColor,
-          borderColor: borderColor,
+          borderColor: isRequiredButEmpty ? borderColorError : borderColor,
           backgroundColor,
           borderWidth: 2,
           borderRadius: 12,

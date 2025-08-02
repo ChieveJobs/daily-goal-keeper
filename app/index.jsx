@@ -182,7 +182,7 @@ export default function Index() {
         if (section.title === "Completed") {
             return false;
         }
-        
+
         if (section.data.filter((task) => !task.completed).length === 0) {
             return "All " + section.title.toLocaleLowerCase() + " tasks done. Good job!";
         } else {
@@ -302,22 +302,20 @@ export default function Index() {
                                     }, 10);
                                 }}
                             >
-                                {/* Section Header */}
-                                <View style={styles.sectionHeader}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <ThemedOcticon name="checklist" size={16} color="#6b7280" style={{ marginRight: 6 }} />
+                                <View style={styles.sectionHeaderContainer}>
+                                    <View style={styles.sectionHeaderTitle}>
+                                        <ThemedOcticon name="checklist" size={16} color="#6b7280" style={styles.sectionHeaderIcon} />
                                         <ThemedText style={styles.sectionHeaderText}>{section.title}</ThemedText>
                                     </View>
 
-                                    <View style={{ paddingTop: 4 }}>
-                                        <ThemedText style={{ fontStyle: 'italic', color: '#6b7280' }}>
+                                    <View>
+                                        <ThemedText style={styles.sectionEmptyText}>
                                             {sectionIsFinished(section)}
                                         </ThemedText>
                                     </View>
                                 </View>
 
-                                {/* Section Items */}
-                                {section.data.map((item, itemIndex) => (
+                                {section.data.map((item) => (
                                     <AnimatedTaskItem
                                         key={item.id}
                                         item={item}
@@ -340,7 +338,7 @@ export default function Index() {
     //#endregion
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.safeAreaContainer}>
             <View style={[styles.dateContainer, { backgroundColor: dateContainerColor }]}>
                 <TouchableOpacity
                     onPress={() => adjustSelectedDate("backward")}
@@ -373,7 +371,7 @@ export default function Index() {
                     <ThemedText style={styles.progressBarText}>{getProgressBarText()}</ThemedText>
                 </View>
             )}
-            {isFocused && visible && (
+            {isFocused && (
                 <GestureDetector gesture={simultaneousGesture}>
                     {renderList()}
                 </GestureDetector>
@@ -384,7 +382,7 @@ export default function Index() {
 
 //#region Styles
 const styles = StyleSheet.create({
-    container: {
+    safeAreaContainer: {
         flex: 1,
     },
     dateContainer: {
@@ -424,7 +422,6 @@ const styles = StyleSheet.create({
     },
     progressBarWrapper: {
         width: "100%",
-        height: 40,
     },
     progressBar: {
         flexDirection: "row",
@@ -443,31 +440,30 @@ const styles = StyleSheet.create({
         color: "#333",
         zIndex: 10,
     },
-    taskTextContainer: {
-        flex: 1,
-        marginRight: 10,
-    },
-    taskTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        marginBottom: 2,
-    },
-    taskSubtitle: {
-        fontSize: 12,
-        color: "#999",
-    },
     sectionList: {
         height: "100%",
     },
     sectionContainer: {
-        marginVertical: 4
+        marginVertical: 4,
     },
-    sectionHeader: {
-        paddingLeft: 20
+    sectionHeaderContainer: {
+        marginLeft: 20,
+        marginTop: 10
+    },
+    sectionHeaderTitle: {
+        flexDirection: 'row',
+        alignItems: 'center'
+    },
+    sectionHeaderIcon: {
+        marginRight: 6
     },
     sectionHeaderText: {
         fontSize: 16,
         fontWeight: "500"
+    },
+    sectionEmptyText: {
+        fontStyle: 'italic',
+        color: '#6b7280'
     },
     hoveredSection: {
         borderWidth: 2,

@@ -36,8 +36,16 @@ export default function RootLayout() {
             name="addTask"
             options={{
               headerShown: true,
-              title: "Add Task",
               animation: "slide_from_right",
+              // Removed the static title so your component can set it dynamically
+            }}
+          />
+          <Stack.Screen
+            name="copyTask"
+            options={{
+              headerShown: true,
+              animation: "slide_from_right",
+              title: "Copy"
             }}
           />
         </Stack>
