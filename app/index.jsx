@@ -380,7 +380,6 @@ export default function Index() {
     );
 }
 
-//#region Styles
 const styles = StyleSheet.create({
     safeAreaContainer: {
         flex: 1,
@@ -441,7 +440,7 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     sectionList: {
-        height: "100%",
+        height: "88%"
     },
     sectionContainer: {
         marginVertical: 4,
@@ -472,4 +471,3 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(34, 197, 94, 0.15)',
     },
 });
-//#endregion

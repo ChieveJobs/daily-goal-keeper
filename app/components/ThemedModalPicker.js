@@ -1,3 +1,4 @@
+//#region Imports
 import { useState } from 'react';
 import {
   FlatList,
@@ -8,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+//#endregion
 
 export default function ThemedModalPicker({ label, options, selected, onChange }) {
   const [visible, setVisible] = useState(false);

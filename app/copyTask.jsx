@@ -1,7 +1,9 @@
+//#region Imports
+import { CommonActions } from "@react-navigation/native";
 import {
   useFocusEffect,
   useLocalSearchParams,
-  useRouter
+  useNavigation,
 } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -12,55 +14,56 @@ import {
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
-  useSharedValue
+  useSharedValue,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ThemedModalPicker from "./components/ThemedModalPicker";
 import ThemedText from "./components/ThemedText";
 import { loadTasks, saveTasks } from "./utils/storage";
+//#endregion
 
 export default function CopyTask() {
+  //#region Hooks
   const { dateOfTask } = useLocalSearchParams();
-  const router = useRouter();
+  const navigation = useNavigation();
   const colorScheme = useColorScheme();
 
   const [tasks, setTasks] = useState([]);
   const [mode, setMode] = useState("");
-
   const [selectedPreviousTask, setSelectedPreviousTask] = useState("");
+  //#endregion
 
+  //#region Styles
   const SAVE_BUTTON = colorScheme === "dark" ? "#34d399" : "#10b981";
   const CANCEL_BUTTON = colorScheme === "dark" ? "#6b7280" : "#d1d5db";
 
-  const MODAL_OPTIONS = () => {
-    const uniqueTasks = Array.from(
-      new Map(tasks.map(item => [item.title, item])).values()
-    );
-
-    return uniqueTasks.map(task => ({
-      label: task.title,
-      value: task.title
-    }));
-  };
-
-  const TASK_MODE_BACKGROUND_COLOR =
-    mode === ""
-      ? "white"
-      : mode === "task"
-        ? SAVE_BUTTON
-        : CANCEL_BUTTON;
-  const DAY_MODE_BACKGROUND_COLOR =
-    mode === ""
-      ? "white"
-      : mode === "day"
-        ? SAVE_BUTTON
-        : CANCEL_BUTTON;
+  const getModeButtonColor = (buttonMode) =>
+    mode === buttonMode ? SAVE_BUTTON : "white";
 
   const slideX = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: slideX.value }]
+    transform: [{ translateX: slideX.value }],
   }));
+
+  const modeTextColor = (backgroundColor) => {
+    if (backgroundColor === SAVE_BUTTON) {
+      return "white";
+    }
+    return colorScheme === "dark" ? "#d1d5db" : "#374151";
+  };
+  //#endregion
+
+  const MODAL_OPTIONS = () => {
+    const uniqueTasks = Array.from(
+      new Map(tasks.map((item) => [item.title, item])).values()
+    );
+
+    return uniqueTasks.map((task) => ({
+      label: task.title,
+      value: task.title,
+    }));
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -73,15 +76,16 @@ export default function CopyTask() {
 
   const switchMode = (mode) => {
     setMode(mode);
-  }
+  };
 
-  const cancel = () => router.back();
+  const cancel = () => navigation.goBack();
 
   const saveTask = async () => {
     if (mode === "task") {
-      const previousTask = tasks.find(task => task.title === selectedPreviousTask);
+      const previousTask = tasks.find(
+        (task) => task.title === selectedPreviousTask
+      );
       if (!previousTask) {
-        console.log("Selected task not found");
         return;
       }
 
@@ -103,75 +107,50 @@ export default function CopyTask() {
       };
 
       const updatedTasks = [...tasks, newTask];
-
-      console.log("New task saved:", newTask);
-      console.log("Total tasks now:", updatedTasks.length);
-
       setTasks(updatedTasks);
       await saveTasks(updatedTasks);
 
-      router.replace("/");
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "index" }],
+        })
+      );
     }
-  };
-
-
-  const modeTextColor = (backgroundColor) => {
-    if (backgroundColor === SAVE_BUTTON) {
-      return "white";
-    }
-    return colorScheme === "dark" ? "#d1d5db" : "#374151";
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <Animated.View style={[animatedStyle, styles.contentWrapper]}>
-
         <View style={styles.modeSelectContainer}>
-          <TouchableOpacity
-            onPress={() => switchMode("task")}
-            style={{ flex: 1 }}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[
-                styles.selectMode,
-                {
-                  backgroundColor: TASK_MODE_BACKGROUND_COLOR,
-                  shadowColor: TASK_MODE_BACKGROUND_COLOR === SAVE_BUTTON ? "#059669" : "#9ca3af",
-                },
-              ]}
-            >
-              <View style={{ backgroundColor: 'transparent' }}>
-                <ThemedText style={[styles.modeText, { color: modeTextColor(TASK_MODE_BACKGROUND_COLOR) }]}>
-                  Task
+          {["task", "day"].map((buttonMode, index) => {
+            const isLast = index === 1;
+            const bgColor = getModeButtonColor(buttonMode);
+            const textColor = modeTextColor(bgColor);
+
+            return (
+              <TouchableOpacity
+                key={buttonMode}
+                onPress={() => switchMode(buttonMode)}
+                style={[
+                  styles.selectMode,
+                  {
+                    backgroundColor: bgColor,
+                    marginLeft: isLast ? 15 : 0,
+                    flex: 1,
+                  },
+                ]}
+                activeOpacity={0.8}
+              >
+                <ThemedText style={[styles.modeText, { color: textColor }]}>
+                  {buttonMode.charAt(0).toUpperCase() + buttonMode.slice(1)}
                 </ThemedText>
-              </View>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => switchMode("day")}
-            style={{ flex: 1, marginLeft: 15 }}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[
-                styles.selectMode,
-                {
-                  backgroundColor: DAY_MODE_BACKGROUND_COLOR,
-                  shadowColor: DAY_MODE_BACKGROUND_COLOR === SAVE_BUTTON ? "#059669" : "#9ca3af",
-                },
-              ]}
-            >
-              <View style={{ backgroundColor: 'transparent' }}>
-                <ThemedText style={[styles.modeText, { color: modeTextColor(DAY_MODE_BACKGROUND_COLOR) }]}>
-                  Day
-                </ThemedText>
-              </View>
-            </View>
-          </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {mode !== "" && mode === "task" && (
+        {mode === "task" && (
           <View style={[styles.modeContainer, styles.taskModeContainer]}>
             <ThemedModalPicker
               label="Select previous task"
@@ -182,10 +161,8 @@ export default function CopyTask() {
           </View>
         )}
 
-        {mode !== "" && mode === "day" && (
-          <View style={[styles.modeContainer, styles.dayModeContainer]}>
-
-          </View>
+        {mode === "day" && (
+          <View style={[styles.modeContainer, styles.dayModeContainer]}></View>
         )}
 
         <View style={styles.buttonContainer}>
@@ -205,7 +182,7 @@ export default function CopyTask() {
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </SafeAreaView >
+    </SafeAreaView>
   );
 }
 
@@ -224,8 +201,6 @@ const styles = StyleSheet.create({
   },
   modeContainer: {
     height: "65%",
-    borderWidth: 2,
-    borderColor: "black"
   },
   selectMode: {
     height: 60,
@@ -233,12 +208,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 10,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
     borderWidth: 1,
     borderColor: "transparent",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: "hidden",
   },
   modeText: {
     fontSize: 18,

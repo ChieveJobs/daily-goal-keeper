@@ -1,3 +1,4 @@
+//#region Imports
 import Octicons from "@expo/vector-icons/Octicons";
 import {
   useFocusEffect,
@@ -23,23 +24,27 @@ import ThemedModalPicker from "./components/ThemedModalPicker";
 import ThemedText from "./components/ThemedText";
 import ThemedTextInput from "./components/ThemedTextInput";
 import { loadTasks, saveTasks } from "./utils/storage";
+//#endregion
 
 export default function AddTask() {
+  //#region Hooks
   const { taskId, dateOfTask } = useLocalSearchParams();
   const router = useRouter();
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
-
   const [tasks, setTasks] = useState([]);
   const [titleInput, onChangeTitleText] = useState("");
   const [descriptionInput, onChangeDescriptionText] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("high");
   const [titlePlaceHolderText, setTitlePlaceholderText] = useState("Title");
   const [titleIsEmpty, setTitleIsEmpty] = useState(false);
+  //#endregion
 
+  //#region Styles
   const SAVE_BUTTON = colorScheme === "dark" ? "#34d399" : "#10b981";
   const DELETE_BUTTON = colorScheme === "dark" ? "#f87171" : "#ef4444";
   const CANCEL_BUTTON = colorScheme === "dark" ? "#6b7280" : "#d1d5db";
+  //#endregion
 
   const MODAL_OPTIONS = [
     { label: "High", value: "high" },
@@ -47,6 +52,7 @@ export default function AddTask() {
     { label: "Low", value: "low" }
   ];
 
+  //#region Animation
   const slideX = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -60,7 +66,8 @@ export default function AddTask() {
       withTiming(0, { duration: 50 })
     );
   };
-
+  //#endregion
+  
   useLayoutEffect(() => {
     navigation.setOptions({
       title: Number(taskId) ? "Edit Task" : "Add Task",
@@ -142,11 +149,11 @@ export default function AddTask() {
 
   const copyEarlierTasksModal = () => {
     router.push({
-            pathname: "/copyTask",
-            params: {
-                dateOfTask: dateOfTask,
-            },
-        });
+      pathname: "/copyTask",
+      params: {
+        dateOfTask: dateOfTask,
+      },
+    });
   };
 
   return (

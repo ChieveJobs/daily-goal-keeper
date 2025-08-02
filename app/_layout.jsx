@@ -37,7 +37,6 @@ export default function RootLayout() {
             options={{
               headerShown: true,
               animation: "slide_from_right",
-              // Removed the static title so your component can set it dynamically
             }}
           />
           <Stack.Screen

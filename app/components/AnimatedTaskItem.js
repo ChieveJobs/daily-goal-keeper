@@ -1,3 +1,4 @@
+//#region 
 import { BlurView } from "expo-blur";
 import { useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View } from "react-native";
@@ -12,6 +13,7 @@ import Animated, {
   withSpring
 } from "react-native-reanimated";
 import ThemedText from "./ThemedText";
+//#endregion
 
 const ITEM_HEIGHT = 60;
 
@@ -25,17 +27,22 @@ const AnimatedTaskItem = ({
   onHoverSectionChange,
   onDraggingEnd
 }) => {
+  //#region Hooks
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const lastHoverSection = useRef(null);
+  //#endregion
 
+  //#region Styles
   const BLUR_VIEW_INTENSITY = colorScheme === "dark" ? 40 : 60;
   const BLUR_VIEW_TINT = colorScheme === "dark" ? "dark" : "light";
   const TASK_BACKGROUND_COLOR = colorScheme === "dark"
     ? "rgba(28,28,30,0.6)"
     : "rgba(255,255,255,0.7)";
   const TASK_BORDER_LEFT_COLOR = item.completed ? "#10b981" : "#fbbf24";
+  //#endregion
 
+  //#region Section
   const checkAndNotifySectionHit = (absoluteY) => {
     const hitSection = checkSectionHit(absoluteY);
     if (lastHoverSection.current !== hitSection) {
@@ -74,7 +81,9 @@ const AnimatedTaskItem = ({
       onDraggingEnd(id, hitSection, true);
     }
   }
+  //#endregion
 
+  //#region Animation
   const panGesture = Gesture.Pan()
     .onStart(() => {
       draggingItem.value = item.id;
@@ -108,7 +117,8 @@ const AnimatedTaskItem = ({
     ],
     zIndex: draggingItem.value === item.id ? 1000 : 1,
   }));
-
+  //#endregion
+  
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View style={[animatedStyle]}>
