@@ -1,5 +1,5 @@
 //#region Imports
-import { CommonActions } from "@react-navigation/native";
+import { CommonActions } from '@react-navigation/native';
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -12,13 +12,17 @@ import {
   View,
   useColorScheme,
 } from "react-native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
+  withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ThemedModalPicker from "./components/ThemedModalPicker";
 import ThemedText from "./components/ThemedText";
+import ThemedTextInput from "./components/ThemedTextInput";
 import { loadTasks, saveTasks } from "./utils/storage";
 //#endregion
 
@@ -30,7 +34,11 @@ export default function CopyTask() {
 
   const [tasks, setTasks] = useState([]);
   const [mode, setMode] = useState("");
+  const [dateHasError, setDateHasError] = useState("");
+  const [taskHasError, setTaskHasError] = useState("");
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [selectedPreviousTask, setSelectedPreviousTask] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   //#endregion
 
   //#region Styles
@@ -41,10 +49,35 @@ export default function CopyTask() {
     mode === buttonMode ? SAVE_BUTTON : "white";
 
   const slideX = useSharedValue(0);
-
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: slideX.value }],
   }));
+
+  const slideXtask = useSharedValue(1);
+  const animatedStyleTask = useAnimatedStyle(() => ({
+    transform: [{ translateX: slideXtask.value }],
+  }));
+
+  const taskErrorAnimation = () => {
+    slideXtask.value = withSequence(
+      withTiming(30, { duration: 50 }),
+      withTiming(-30, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+  };
+
+  const slideXdate = useSharedValue(2);
+  const animatedStyleDate = useAnimatedStyle(() => ({
+    transform: [{ translateX: slideXdate.value }],
+  }));
+
+  const dateErrorAnimation = () => {
+    slideXdate.value = withSequence(
+      withTiming(30, { duration: 50 }),
+      withTiming(-30, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+  };
 
   const modeTextColor = (backgroundColor) => {
     if (backgroundColor === SAVE_BUTTON) {
@@ -78,10 +111,23 @@ export default function CopyTask() {
     setMode(mode);
   };
 
+  const displayAndSaveSelectedDate = (date) => {
+    setSelectedDate(date.toLocaleDateString("en-GB"));
+    setDatePickerVisible(false);
+  }
+
   const cancel = () => navigation.goBack();
 
   const saveTask = async () => {
+    setTaskHasError("");
+    setDateHasError("");
     if (mode === "task") {
+      if (selectedPreviousTask === "") {
+        setTaskHasError("A task must be selected");
+        taskErrorAnimation();
+        return;
+      }
+
       const previousTask = tasks.find(
         (task) => task.title === selectedPreviousTask
       );
@@ -109,21 +155,47 @@ export default function CopyTask() {
       const updatedTasks = [...tasks, newTask];
       setTasks(updatedTasks);
       await saveTasks(updatedTasks);
+    } else {
+      if (selectedDate === "") {
+        setDateHasError("A date must be selected");
+        dateErrorAnimation();
+        return;
+      }
 
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: "index" }],
-        })
-      );
+      const tasksOfDate = tasks
+        .filter((task) => task.date === selectedDate)
+        .map((task) => ({ ...task }));
+
+      if (tasksOfDate.length > 0) {
+        const maxId = tasks.reduce(
+          (max, task) => Math.max(max, task?.id ?? 0),
+          0
+        );
+
+        tasksOfDate.forEach((task, index) => {
+          task.id = maxId + index + 1;
+          task.date = dateOfTask;
+        });
+
+        const updatedTasks = [...tasks, ...tasksOfDate];
+        setTasks(updatedTasks);
+        await saveTasks(updatedTasks);
+      }
     }
+
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: "index" }],
+      })
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <Animated.View style={[animatedStyle, styles.contentWrapper]}>
         <View style={styles.modeSelectContainer}>
-          {["task", "day"].map((buttonMode, index) => {
+          {["task", "date"].map((buttonMode, index) => {
             const isLast = index === 1;
             const bgColor = getModeButtonColor(buttonMode);
             const textColor = modeTextColor(bgColor);
@@ -151,18 +223,23 @@ export default function CopyTask() {
         </View>
 
         {mode === "task" && (
-          <View style={[styles.modeContainer, styles.taskModeContainer]}>
+          <Animated.View style={[animatedStyleTask, styles.modeContainer]}>
             <ThemedModalPicker
+            hasError={taskHasError}
               label="Select previous task"
               selected={selectedPreviousTask}
               onChange={setSelectedPreviousTask}
               options={MODAL_OPTIONS()}
             />
-          </View>
+          </Animated.View>
         )}
 
-        {mode === "day" && (
-          <View style={[styles.modeContainer, styles.dayModeContainer]}></View>
+        {mode === "date" && (
+          <Animated.View style={[animatedStyleDate, styles.modeContainer]}>
+            <TouchableOpacity onPress={() => { setDatePickerVisible(true) }}>
+              <ThemedTextInput hasError={dateHasError} editable={false} placeholder="Select a date" >{selectedDate}</ThemedTextInput>
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         <View style={styles.buttonContainer}>
@@ -173,14 +250,24 @@ export default function CopyTask() {
           >
             <ThemedText style={styles.buttonText}>Cancel</ThemedText>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: SAVE_BUTTON }]}
-            onPress={saveTask}
-            activeOpacity={0.8}
-          >
-            <ThemedText style={styles.buttonText}>Save</ThemedText>
-          </TouchableOpacity>
+          {mode && (
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: SAVE_BUTTON }]}
+              onPress={saveTask}
+              activeOpacity={0.8}
+            >
+              <ThemedText style={styles.buttonText}>Save</ThemedText>
+            </TouchableOpacity>
+          )}
         </View>
+        <DateTimePickerModal
+          isVisible={datePickerVisible}
+          mode="date"
+          onConfirm={(date) => {
+            displayAndSaveSelectedDate(date);
+          }}
+          onCancel={() => setDatePickerVisible(false)}
+        />
       </Animated.View>
     </SafeAreaView>
   );

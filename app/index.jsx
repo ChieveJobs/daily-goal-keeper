@@ -32,7 +32,6 @@ export default function Index() {
 
     const [selectedDate, setDate] = useState(new Date());
     const [tasks, setTasks] = useState([]);
-    const [visible, setVisible] = useState(true);
     const [hoverSection, setHoverSection] = useState(null);
 
     const sectionsLayout = useRef({});
@@ -80,7 +79,6 @@ export default function Index() {
     };
 
     const handlePostSlideOut = (direction, offset) => {
-        setVisible(false);
 
         setTimeout(() => {
             const newDate = new Date(selectedDate);
@@ -88,8 +86,6 @@ export default function Index() {
             setDate(newDate);
 
             slideX.value = -offset;
-
-            setVisible(true);
 
             slideX.value = withTiming(0, { duration: 150 });
             opacity.value = withTiming(1, { duration: 150 });

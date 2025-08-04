@@ -1,4 +1,5 @@
 //#region 
+import Octicons from "@expo/vector-icons/Octicons";
 import { BlurView } from "expo-blur";
 import { useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View } from "react-native";
@@ -118,7 +119,7 @@ const AnimatedTaskItem = ({
     zIndex: draggingItem.value === item.id ? 1000 : 1,
   }));
   //#endregion
-  
+
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View style={[animatedStyle]}>
@@ -138,7 +139,21 @@ const AnimatedTaskItem = ({
             <View style={styles.taskTextContainer}>
               <ThemedText style={styles.taskTitle}>{item.title}</ThemedText>
               <ThemedText style={styles.taskSubtitle}>
-                {item.date}
+                {item.completed ? (
+                  <ThemedText style={styles.taskSubtitle}>Completed</ThemedText>
+                ) : item.from || item.to ? (
+                  <View style={[styles.timeRow, { paddingTop: 4 }]}>
+                    <Octicons
+                      name="clock"
+                      size={14}
+                      color="#6b7280"
+                      style={{ marginRight: 4 }}
+                    />
+                    <ThemedText style={styles.taskSubtitle}>
+                      {`${item.from ?? ""}${item.to ? ` - ${item.to}` : ""}`}
+                    </ThemedText>
+                  </View>
+                ) : null}
               </ThemedText>
             </View>
           </BlurView>
@@ -177,6 +192,10 @@ const styles = StyleSheet.create({
   taskSubtitle: {
     fontSize: 12,
     color: "#999",
+  },
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });
 
