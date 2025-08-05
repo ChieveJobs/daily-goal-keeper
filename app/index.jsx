@@ -12,10 +12,11 @@ import {
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+    Easing,
     runOnJS,
     useAnimatedStyle,
     useSharedValue,
-    withTiming,
+    withTiming
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AnimatedTaskItem from "./components/AnimatedTaskItem";
@@ -27,7 +28,6 @@ import { loadTasks, saveTasks } from "./utils/storage";
 export default function Index() {
     //#region Hooks
     const router = useRouter();
-
     const isFocused = useIsFocused();
 
     const [selectedDate, setDate] = useState(new Date());
@@ -58,7 +58,6 @@ export default function Index() {
 
     const adjustSelectedDate = (direction) => {
         const offset = direction === "forward" ? -300 : 300;
-
         opacity.value = withTiming(0, { duration: 150 }, () => {
             runOnJS(handlePostSlideOut)(direction, offset);
         });
@@ -79,19 +78,18 @@ export default function Index() {
     };
 
     const handlePostSlideOut = (direction, offset) => {
-
         setTimeout(() => {
             const newDate = new Date(selectedDate);
             newDate.setDate(newDate.getDate() + (direction === "forward" ? 1 : -1));
             setDate(newDate);
 
             slideX.value = -offset;
-
             slideX.value = withTiming(0, { duration: 150 });
             opacity.value = withTiming(1, { duration: 150 });
 
             setTimeout(() => {
                 measureSectionLayouts();
+                updateProgress(tasks); // Update on date change
             }, 200);
         }, 10);
     };
@@ -142,10 +140,10 @@ export default function Index() {
         ];
     };
 
-    // Re-measure when tasks change
     const handleTasksChange = (newTasks) => {
         setTasks(newTasks);
         saveTasks(newTasks);
+        updateProgress(newTasks);
         setTimeout(() => {
             measureSectionLayouts();
         }, 50);
@@ -168,66 +166,47 @@ export default function Index() {
             );
             saveTasks(updated);
             setTimeout(measureSectionLayouts, 50);
+            updateProgress(updated);
             return updated;
         });
-
         setHoverSection("");
     };
 
     const sectionIsFinished = (section) => {
-        if (section.title === "Completed") {
-            return false;
-        }
+        if (section.title === "Completed") return false;
 
-        if (section.data.filter((task) => !task.completed).length === 0) {
-            return "All " + section.title.toLocaleLowerCase() + " tasks done. Good job!";
-        } else {
-            return false;
-        }
-    }
+        const incomplete = section.data.filter((task) => !task.completed).length;
+        return incomplete === 0 ? `All ${section.title.toLowerCase()} tasks done. Good job!` : false;
+    };
 
     const tasksNotEmpty = () => {
         return getFilteredTasks().some(section => section.data.length > 0);
-    }
+    };
     //#endregion
 
-    //#region Progress bar
-    const getProgressBarSegments = () => {
-        const filteredTasks = tasks.filter(task => task.date === formattedDate);
+    //#region Progress bar animation
+    const progress = useSharedValue(0);
 
-        const orderedTasks = [];
+    const progressBarAnimatedStyle = useAnimatedStyle(() => ({
+        width: `${progress.value * 100}%`,
+    }));
 
-        for (const task of filteredTasks) {
-            if (task.completed) orderedTasks.push(task);
-        }
+    const updateProgress = (taskList) => {
+        const filteredTasks = taskList.filter((task) => task.date === formattedDate);
+        const completedTasks = filteredTasks.filter((task) => task.completed);
+        const ratio = filteredTasks.length > 0 ? completedTasks.length / filteredTasks.length : 0;
 
-        for (const task of filteredTasks) {
-            if (!task.completed) orderedTasks.push(task);
-        }
-
-        return orderedTasks.map((task, i) => (
-            <View
-                key={i}
-                style={{
-                    flex: 1,
-                    backgroundColor: task.completed
-                        ? colorScheme === "dark"
-                            ? "rgba(34, 197, 94, 0.8)"
-                            : "rgba(34, 197, 94, 0.6)"
-                        : colorScheme === "dark"
-                            ? "rgba(239, 68, 68, 0.4)"
-                            : "rgba(239, 68, 68, 0.3)",
-                }}
-            />
-        ));
+        progress.value = withTiming(ratio, {
+            duration: 500,
+            easing: Easing.out(Easing.ease),
+        });
     };
 
     const getProgressBarText = () => {
         const filteredTasks = tasks.filter((task) => task.date === formattedDate);
         const completedTasks = filteredTasks.filter((task) => task.completed);
-
-        return <ThemedText>Completed tasks: {completedTasks.length} / {filteredTasks.length}</ThemedText>
-    }
+        return <ThemedText>Completed tasks: {completedTasks.length} / {filteredTasks.length}</ThemedText>;
+    };
     //#endregion
 
     //#region Layout
@@ -236,6 +215,7 @@ export default function Index() {
             const load = async () => {
                 const loaded = await loadTasks();
                 setTasks(loaded || []);
+                updateProgress(loaded || []);
                 setTimeout(() => {
                     measureSectionLayouts();
                 }, 100);
@@ -284,31 +264,22 @@ export default function Index() {
                             <View
                                 key={section.title}
                                 ref={(ref) => {
-                                    if (ref) {
-                                        sectionContainerRefs.current[section.title] = ref;
-                                    }
+                                    if (ref) sectionContainerRefs.current[section.title] = ref;
                                 }}
                                 style={[
                                     styles.sectionContainer,
                                     isHovered && styles.hoveredSection
                                 ]}
-                                onLayout={() => {
-                                    setTimeout(() => {
-                                        measureSectionLayouts();
-                                    }, 10);
-                                }}
+                                onLayout={() => setTimeout(measureSectionLayouts, 10)}
                             >
                                 <View style={styles.sectionHeaderContainer}>
                                     <View style={styles.sectionHeaderTitle}>
                                         <ThemedOcticon name="checklist" size={16} color="#6b7280" style={styles.sectionHeaderIcon} />
                                         <ThemedText style={styles.sectionHeaderText}>{section.title}</ThemedText>
                                     </View>
-
-                                    <View>
-                                        <ThemedText style={styles.sectionEmptyText}>
-                                            {sectionIsFinished(section)}
-                                        </ThemedText>
-                                    </View>
+                                    <ThemedText style={styles.sectionEmptyText}>
+                                        {sectionIsFinished(section)}
+                                    </ThemedText>
                                 </View>
 
                                 {section.data.map((item) => (
@@ -362,11 +333,22 @@ export default function Index() {
             {tasksNotEmpty() && (
                 <View style={styles.progressBarWrapper}>
                     <View style={styles.progressBar}>
-                        {getProgressBarSegments()}
+                        <Animated.View
+                            style={[
+                                StyleSheet.absoluteFill,
+                                {
+                                    backgroundColor: colorScheme === "dark"
+                                        ? "rgba(34, 197, 94, 0.8)"
+                                        : "rgba(34, 197, 94, 0.6)",
+                                },
+                                progressBarAnimatedStyle,
+                            ]}
+                        />
                     </View>
                     <ThemedText style={styles.progressBarText}>{getProgressBarText()}</ThemedText>
                 </View>
             )}
+
             {isFocused && (
                 <GestureDetector gesture={simultaneousGesture}>
                     {renderList()}
@@ -378,7 +360,7 @@ export default function Index() {
 
 const styles = StyleSheet.create({
     safeAreaContainer: {
-        flex: 1,
+        flex: 1
     },
     dateContainer: {
         height: "8%",
@@ -394,10 +376,10 @@ const styles = StyleSheet.create({
         margin: 20,
     },
     dateBackwardButton: {
-        left: 0,
+        left: 0
     },
     dateForwardButton: {
-        right: 0,
+        right: 0
     },
     floatingActionButton: {
         width: 60,
@@ -416,18 +398,18 @@ const styles = StyleSheet.create({
         zIndex: 9999,
     },
     progressBarWrapper: {
-        width: "100%",
+        width: "100%"
     },
     progressBar: {
         flexDirection: "row",
         height: 30,
         width: "100%",
         overflow: "hidden",
+        backgroundColor: "#e5e7eb",
     },
     progressBarText: {
         position: "absolute",
         top: 4,
-        bottom: 0,
         left: 0,
         right: 0,
         textAlign: "center",
@@ -439,7 +421,7 @@ const styles = StyleSheet.create({
         height: "88%"
     },
     sectionContainer: {
-        marginVertical: 4,
+        marginVertical: 4
     },
     sectionHeaderContainer: {
         marginLeft: 20,
@@ -449,9 +431,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center'
     },
-    sectionHeaderIcon: {
-        marginRight: 6
-    },
+    sectionHeaderIcon: { marginRight: 6 },
     sectionHeaderText: {
         fontSize: 16,
         fontWeight: "500"
