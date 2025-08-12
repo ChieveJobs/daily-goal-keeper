@@ -1,8 +1,8 @@
 //#region Imports 
 import Octicons from "@expo/vector-icons/Octicons";
 import { useIsFocused } from "@react-navigation/native";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ScrollView,
     StyleSheet,
@@ -29,8 +29,8 @@ export default function Index() {
     //#region Hooks
     const router = useRouter();
     const isFocused = useIsFocused();
-
-    const [selectedDate, setDate] = useState(new Date());
+    const { dateOfTask } = useLocalSearchParams();
+    const [selectedDate, setDate] = useState(new Date().toLocaleDateString('en-GB'));
     const [tasks, setTasks] = useState([]);
     const [hoverSection, setHoverSection] = useState(null);
 
@@ -54,8 +54,6 @@ export default function Index() {
     //#endregion
 
     //#region Date
-    const formattedDate = selectedDate.toLocaleDateString("en-GB");
-
     const adjustSelectedDate = (direction) => {
         const offset = direction === "forward" ? -300 : 300;
         opacity.value = withTiming(0, { duration: 150 }, () => {
@@ -78,20 +76,23 @@ export default function Index() {
     };
 
     const handlePostSlideOut = (direction, offset) => {
-        setTimeout(() => {
-            const newDate = new Date(selectedDate);
-            newDate.setDate(newDate.getDate() + (direction === "forward" ? 1 : -1));
-            setDate(newDate);
+        const currentDate = parseDateString(selectedDate);
+        const dayChange = direction === "forward" ? 1 : -1;
+        currentDate.setDate(currentDate.getDate() + dayChange);
 
-            slideX.value = -offset;
-            slideX.value = withTiming(0, { duration: 150 });
-            opacity.value = withTiming(1, { duration: 150 });
+        setDate(currentDate.toLocaleDateString('en-GB'));
 
-            setTimeout(() => {
-                measureSectionLayouts();
-                updateProgress(tasks); // Update on date change
-            }, 200);
-        }, 10);
+        slideX.value = -offset;
+        slideX.value = withTiming(0, { duration: 150 });
+        opacity.value = withTiming(1, { duration: 150 });
+
+        measureSectionLayouts();
+        // Removed updateProgress here, handled in useEffect
+    };
+
+    const parseDateString = (dateStr) => {
+        const [day, month, year] = dateStr.split('/').map(Number);
+        return new Date(year, month - 1, day);
     };
 
     const panGesture = Gesture.Pan()
@@ -123,19 +124,19 @@ export default function Index() {
         return [
             {
                 title: 'Completed',
-                data: tasks.filter((task) => task.completed && task.date === formattedDate),
+                data: tasks.filter((task) => task.completed && task.date === selectedDate),
             },
             {
                 title: 'High priority',
-                data: tasks.filter((task) => task.priority === "high" && !task.completed && task.date === formattedDate),
+                data: tasks.filter((task) => task.priority === "high" && !task.completed && task.date === selectedDate),
             },
             {
                 title: 'Medium priority',
-                data: tasks.filter((task) => task.priority === "medium" && !task.completed && task.date === formattedDate),
+                data: tasks.filter((task) => task.priority === "medium" && !task.completed && task.date === selectedDate),
             },
             {
                 title: 'Low priority',
-                data: tasks.filter((task) => task.priority === "low" && !task.completed && task.date === formattedDate),
+                data: tasks.filter((task) => task.priority === "low" && !task.completed && task.date === selectedDate),
             }
         ];
     };
@@ -143,10 +144,8 @@ export default function Index() {
     const handleTasksChange = (newTasks) => {
         setTasks(newTasks);
         saveTasks(newTasks);
-        updateProgress(newTasks);
-        setTimeout(() => {
-            measureSectionLayouts();
-        }, 50);
+        measureSectionLayouts();
+        // updateProgress removed here, handled in useEffect
     };
 
     const addTask = (id) => {
@@ -154,7 +153,7 @@ export default function Index() {
             pathname: "/addTask",
             params: {
                 taskId: id,
-                dateOfTask: selectedDate.toLocaleDateString("en-GB"),
+                dateOfTask: selectedDate,
             },
         });
     };
@@ -166,7 +165,7 @@ export default function Index() {
             );
             saveTasks(updated);
             setTimeout(measureSectionLayouts, 50);
-            updateProgress(updated);
+            // updateProgress removed here, handled in useEffect
             return updated;
         });
         setHoverSection("");
@@ -191,8 +190,8 @@ export default function Index() {
         width: `${progress.value * 100}%`,
     }));
 
-    const updateProgress = (taskList) => {
-        const filteredTasks = taskList.filter((task) => task.date === formattedDate);
+    const updateProgress = (date) => {
+        const filteredTasks = tasks.filter((task) => task.date === date);
         const completedTasks = filteredTasks.filter((task) => task.completed);
         const ratio = filteredTasks.length > 0 ? completedTasks.length / filteredTasks.length : 0;
 
@@ -203,7 +202,7 @@ export default function Index() {
     };
 
     const getProgressBarText = () => {
-        const filteredTasks = tasks.filter((task) => task.date === formattedDate);
+        const filteredTasks = tasks.filter((task) => task.date === selectedDate);
         const completedTasks = filteredTasks.filter((task) => task.completed);
         return <ThemedText>Completed tasks: {completedTasks.length} / {filteredTasks.length}</ThemedText>;
     };
@@ -213,9 +212,11 @@ export default function Index() {
     useFocusEffect(
         useCallback(() => {
             const load = async () => {
+                if (dateOfTask) {
+                    setDate(dateOfTask);
+                }
                 const loaded = await loadTasks();
                 setTasks(loaded || []);
-                updateProgress(loaded || []);
                 setTimeout(() => {
                     measureSectionLayouts();
                 }, 100);
@@ -304,6 +305,12 @@ export default function Index() {
     };
     //#endregion
 
+    //#region useEffect for updateProgress
+    useEffect(() => {
+        updateProgress(selectedDate);
+    }, [tasks, selectedDate]);
+    //#endregion
+
     return (
         <SafeAreaView style={styles.safeAreaContainer}>
             <View style={[styles.dateContainer, { backgroundColor: dateContainerColor }]}>
@@ -313,7 +320,7 @@ export default function Index() {
                 >
                     <ThemedOcticon name="arrow-left" size={24} />
                 </TouchableOpacity>
-                <ThemedText>{selectedDate.toLocaleDateString("en-GB")}</ThemedText>
+                <ThemedText>{selectedDate}</ThemedText>
                 <TouchableOpacity
                     onPress={() => adjustSelectedDate("forward")}
                     style={[styles.dateButton, styles.dateForwardButton]}

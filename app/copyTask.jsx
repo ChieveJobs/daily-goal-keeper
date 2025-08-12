@@ -112,7 +112,7 @@ export default function CopyTask() {
   };
 
   const displayAndSaveSelectedDate = (date) => {
-    setSelectedDate(date.toLocaleDateString("en-GB"));
+    setSelectedDate(date.toLocaleDateString('en-GB'));
     setDatePickerVisible(false);
   }
 
@@ -121,6 +121,7 @@ export default function CopyTask() {
   const saveTask = async () => {
     setTaskHasError("");
     setDateHasError("");
+
     if (mode === "task") {
       if (selectedPreviousTask === "") {
         setTaskHasError("A task must be selected");
@@ -140,14 +141,16 @@ export default function CopyTask() {
         0
       );
 
+      const priorityLower = (previousTask.priority ?? "").toLowerCase();
+
       const newTask = {
         id: maxId + 1,
         title: previousTask.title,
         description: previousTask.description,
         date: dateOfTask,
-        priority: previousTask.priority?.toLowerCase().includes("high")
+        priority: priorityLower.includes("high")
           ? "high"
-          : previousTask.priority?.toLowerCase().includes("medium")
+          : priorityLower.includes("medium")
             ? "medium"
             : "low",
       };
@@ -186,7 +189,7 @@ export default function CopyTask() {
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: "index" }],
+        routes: [{ name: "index", params: { dateOfTask } }],
       })
     );
   };
@@ -225,7 +228,7 @@ export default function CopyTask() {
         {mode === "task" && (
           <Animated.View style={[animatedStyleTask, styles.modeContainer]}>
             <ThemedModalPicker
-            hasError={taskHasError}
+              hasError={taskHasError}
               label="Select previous task"
               selected={selectedPreviousTask}
               onChange={setSelectedPreviousTask}
