@@ -20,6 +20,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LinearGradientTheme from './components/LinearGradientTheme';
 import ThemedModalPicker from "./components/ThemedModalPicker";
 import ThemedText from "./components/ThemedText";
 import ThemedTextInput from "./components/ThemedTextInput";
@@ -196,6 +197,7 @@ export default function CopyTask() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <LinearGradientTheme />
       <Animated.View style={[animatedStyle, styles.contentWrapper]}>
         <View style={styles.modeSelectContainer}>
           {["task", "date"].map((buttonMode, index) => {

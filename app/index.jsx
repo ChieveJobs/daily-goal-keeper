@@ -20,6 +20,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AnimatedTaskItem from "./components/AnimatedTaskItem";
+import LinearGradientTheme from "./components/LinearGradientTheme";
 import ThemedOcticon from "./components/ThemedOcticon";
 import ThemedText from "./components/ThemedText";
 import { loadTasks, saveTasks } from "./utils/storage";
@@ -313,6 +314,7 @@ export default function Index() {
 
     return (
         <SafeAreaView style={styles.safeAreaContainer}>
+            <LinearGradientTheme />
             <View style={[styles.dateContainer, { backgroundColor: dateContainerColor }]}>
                 <TouchableOpacity
                     onPress={() => adjustSelectedDate("backward")}
