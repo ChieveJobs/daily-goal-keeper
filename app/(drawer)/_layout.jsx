@@ -6,6 +6,17 @@ export default function Layout() {
       screenOptions={{
         headerShown: false,
       }}
-    />
+    >
+      <Drawer.Screen
+        name='index'
+        options={{
+          title: 'Tasks'
+        }} />
+      <Drawer.Screen
+        name='meditation'
+        options={{
+          title: 'Meditation'
+        }} />
+    </Drawer>
   );
 }

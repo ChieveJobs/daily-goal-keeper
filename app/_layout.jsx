@@ -18,7 +18,7 @@ export default function RootLayout() {
             headerTintColor: colorScheme === "dark" ? "white" : "black",
           }}
         >
-          {/* Hide Stack header for the drawer screen */}
+        {/* Hide Stack header for the drawer screen */}
           <Stack.Screen 
             name="(drawer)" 
             options={{ headerShown: false }} 
