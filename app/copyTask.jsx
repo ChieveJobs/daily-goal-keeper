@@ -190,7 +190,14 @@ export default function CopyTask() {
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: "index", params: { dateOfTask } }],
+        routes: [
+          {
+            name: '(drawer)',
+            state: {
+              routes: [{ name: 'index', params: { dateOfTask } }],
+            },
+          },
+        ],
       })
     );
   };

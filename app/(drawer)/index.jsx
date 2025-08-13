@@ -19,11 +19,11 @@ import Animated, {
     withTiming
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AnimatedTaskItem from "./components/AnimatedTaskItem";
-import LinearGradientTheme from "./components/LinearGradientTheme";
-import ThemedOcticon from "./components/ThemedOcticon";
-import ThemedText from "./components/ThemedText";
-import { loadTasks, saveTasks } from "./utils/storage";
+import AnimatedTaskItem from "../components/AnimatedTaskItem";
+import LinearGradientTheme from "../components/LinearGradientTheme";
+import ThemedOcticon from "../components/ThemedOcticon";
+import ThemedText from "../components/ThemedText";
+import { loadTasks, saveTasks } from "../utils/storage";
 //#endregion
 
 export default function Index() {

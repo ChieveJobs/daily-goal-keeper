@@ -18,9 +18,10 @@ export default function RootLayout() {
             headerTintColor: colorScheme === "dark" ? "white" : "black",
           }}
         >
-          <Stack.Screen
-            name="index"
-            options={{ headerShown: false, title: "Index" }}
+          {/* Hide Stack header for the drawer screen */}
+          <Stack.Screen 
+            name="(drawer)" 
+            options={{ headerShown: false }} 
           />
           <Stack.Screen
             name="addTask"
@@ -34,7 +35,7 @@ export default function RootLayout() {
             options={{
               headerShown: true,
               animation: "slide_from_right",
-              title: "Copy"
+              title: "Copy",
             }}
           />
         </Stack>
