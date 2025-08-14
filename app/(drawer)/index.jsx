@@ -1,6 +1,6 @@
 //#region Imports 
 import Octicons from "@expo/vector-icons/Octicons";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -23,12 +23,14 @@ import AnimatedTaskItem from "../components/AnimatedTaskItem";
 import LinearGradientTheme from "../components/LinearGradientTheme";
 import ThemedOcticon from "../components/ThemedOcticon";
 import ThemedText from "../components/ThemedText";
+import TopBar from "../components/TopBar";
 import { loadTasks, saveTasks } from "../utils/storage";
 //#endregion
 
 export default function Index() {
     //#region Hooks
     const router = useRouter();
+    const navigation = useNavigation();
     const isFocused = useIsFocused();
     const { dateOfTask } = useLocalSearchParams();
     const [selectedDate, setDate] = useState(new Date().toLocaleDateString('en-GB'));
@@ -48,10 +50,6 @@ export default function Index() {
     const fabColor = colorScheme === "dark"
         ? "rgba(52, 211, 153, 0.95)"
         : "rgba(16, 185, 129, 0.95)";
-    const dateContainerColor =
-        colorScheme === "dark"
-            ? "rgba(39, 35, 35, 0.54)"
-            : "rgba(255, 255, 255, 0.4)";
     //#endregion
 
     //#region Date
@@ -315,21 +313,7 @@ export default function Index() {
     return (
         <SafeAreaView style={styles.safeAreaContainer}>
             <LinearGradientTheme />
-            <View style={[styles.dateContainer, { backgroundColor: dateContainerColor }]}>
-                <TouchableOpacity
-                    onPress={() => adjustSelectedDate("backward")}
-                    style={[styles.dateButton, styles.dateBackwardButton]}
-                >
-                    <ThemedOcticon name="arrow-left" size={24} />
-                </TouchableOpacity>
-                <ThemedText>{selectedDate}</ThemedText>
-                <TouchableOpacity
-                    onPress={() => adjustSelectedDate("forward")}
-                    style={[styles.dateButton, styles.dateForwardButton]}
-                >
-                    <ThemedOcticon name="arrow-right" size={24} />
-                </TouchableOpacity>
-            </View>
+            <TopBar title={selectedDate}></TopBar>
 
             <TouchableOpacity
                 style={[styles.floatingActionButton, { backgroundColor: fabColor }]}
@@ -370,25 +354,6 @@ export default function Index() {
 const styles = StyleSheet.create({
     safeAreaContainer: {
         flex: 1
-    },
-    dateContainer: {
-        height: "8%",
-        width: "100%",
-        justifyContent: "center",
-        alignItems: "center"
-    },
-    dateButton: {
-        position: "absolute",
-        width: 30,
-        height: "100%",
-        justifyContent: "center",
-        margin: 20,
-    },
-    dateBackwardButton: {
-        left: 0
-    },
-    dateForwardButton: {
-        right: 0
     },
     floatingActionButton: {
         width: 60,

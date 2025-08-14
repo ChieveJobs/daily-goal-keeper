@@ -5,5 +5,5 @@ export default function ThemedOcticon({ style, ...props }) {
   const scheme = useColorScheme();
   const color = scheme === 'dark' ? 'white' : 'black';
 
-  return <Octicons style={[{ color: color }, style]} {...props} />;
+  return <Octicons style={[{ color: color }, style]} {...props} />
 }

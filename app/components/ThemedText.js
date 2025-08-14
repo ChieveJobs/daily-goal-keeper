@@ -4,5 +4,5 @@ export default function ThemedText({ style, ...props }) {
   const scheme = useColorScheme();
   const color = scheme === 'dark' ? 'white' : 'black';
 
-  return <Text style={[{ color: color }, style]} {...props} />;
+  return <Text style={[{ color: color }, style]} {...props} />
 }
